@@ -1,3 +1,5 @@
 .lake/
 /vendor/
 /tests/gen/ark-vectors/target/
+/tools/pvm-ref/target/
+__pycache__/
