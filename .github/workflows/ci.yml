@@ -24,6 +24,8 @@ jobs:
         run: lake build jam-lean-target
       - name: Ring root vectors (JamCrypto.Ring, see tests/gen)
         run: lake build ringtest && .lake/build/bin/ringtest
+      - name: Crypto test vectors (Ed25519, Bandersnatch IETF VRF)
+        run: lake build cryptotest && .lake/build/bin/cryptotest
       - name: Fetch the 0.8.0 fuzzer sessions
         run: git clone -q https://github.com/jam-conformance/jam-fuzzing vendor/jam-fuzzing && git -C vendor/jam-fuzzing checkout -q cddba17d4a0798a7c794e003df0c21140e1fc09a
       - name: Smoke test (session replay; known gap from slot 12, see docs/gaps.md)

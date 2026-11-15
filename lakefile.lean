@@ -28,3 +28,7 @@ lean_lib JamCrypto
 /-- Ring root and ring VRF vectors: `lake exe ringtest [VECTOR-FILES]`. -/
 lean_exe ringtest where
   root := `RingTest
+
+/-- Ed25519 and Bandersnatch IETF VRF vectors: `lake exe cryptotest [DIR]`. -/
+lean_exe cryptotest where
+  root := `JamCryptoTest
