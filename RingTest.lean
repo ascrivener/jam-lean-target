@@ -3,7 +3,8 @@ import JamCrypto.Ring
 /-! Ring vectors (`lake exe ringtest [FILE…]`, run from the repository root). Each line of a vector
     file is `root RINGSIZE ROOT KEY…` (hex; a key may be any octet string),
     `proof RINGSIZE ROOT CTX MSG SIG VALID OUT` (MSG `-` for empty; VALID 1 or 0; OUT the expected
-    Y for valid ones) or a `#` comment. Exits 1 on any
+    Y for valid ones), `ticket RINGSIZE ROOT ETA2 ATTEMPT SIG` (the ticket context is built here)
+    or a `#` comment. Exits 1 on any
     mismatch. Vector sources: `tests/gen/` (jam-test-vectors and jam-fuzzing states; ark-vrf 0.1.0). -/
 
 open JamCrypto
@@ -37,7 +38,7 @@ def main (args : List String) : IO UInt32 := do
   IO.println s!"self-checks: shake128 {shakeOk}, frobenius {frobOk}, bilinearity {pairOk}"
   let mut bad := if shakeOk && frobOk && pairOk then 0 else 1
   let files := if args.isEmpty then ["tests/vectors/ring-root-jam.txt", "tests/vectors/ring-root-ark.txt", "tests/vectors/ring-proof-ark.txt",
-    "tests/vectors/ring-proof-jam.txt"] else args
+    "tests/vectors/ring-proof-jam.txt", "tests/vectors/ring-ticket-jam.txt"] else args
   let mut n := 0
   for f in files do
     for line in (← IO.FS.lines f) do
@@ -62,6 +63,18 @@ def main (args : List String) : IO UInt32 := do
           bad := bad + 1
           IO.println s!"FAIL proof (ring size {size}): verify {ok} want {want}, output ok {outOk}"
         else IO.println s!"ok proof (ring size {size}, valid {want}, {e - s} ms)"
+      | "ticket" :: size :: root :: eta2 :: attempt :: sig :: _ =>
+        -- the ticket context of GP §6.7: X_T ⌢ η'_2 ⌢ attempt, X_T = the octets "jam_ticket_seal"
+        -- (the GP writes $jam_ticket_seal; the $ is notation, not an octet)
+        let ctx (xt : String) := xt.toUTF8.toList ++ unhex eta2 ++ [UInt8.ofNat attempt.toNat!]
+        let v (xt : String) := Ring.verify srs size.toNat! (unhex root) (ctx xt) [] (unhex sig)
+        let good := v "jam_ticket_seal"
+        let dollar := v "$jam_ticket_seal"
+        n := n + 1
+        if good && !dollar then IO.println s!"ok ticket context (ring size {size})"
+        else
+          bad := bad + 1
+          IO.println s!"FAIL ticket context (ring size {size}): jam_ticket_seal {good}, $jam_ticket_seal {dollar}"
       | _ => pure ()
   IO.println s!"{n - bad}/{n} passed"
   return if bad == 0 then 0 else 1
