@@ -178,4 +178,32 @@ def decodeUncompressed (bs : ByteArray) (off : Nat) : Option Aff := Id.run do
   let p : Aff := ⟨x, y, false⟩
   return if onCurve p then some p else none
 
+/-- The uncompressed 96-octet zcash encoding. -/
+def encodeUncompressed (p : Aff) : List UInt8 :=
+  if p.inf then 0x40 :: List.replicate 95 0 else Field.toBE 48 p.x ++ Field.toBE 48 p.y
+
+/-- In the prime-order subgroup: [r]P is the identity. -/
+def inSubgroup (p : Aff) : Bool := p.inf || (smul p.toJac Fr.R).z == 0
+
+/-- The compressed 48-octet zcash encoding, decoded and checked to be in G1 (as arkworks'
+    validating deserialization does). -/
+def decompress (bs : List UInt8) : Option Aff := do
+  if bs.length != 48 then none
+  let b0 := bs.head!
+  if b0 &&& 0x80 == 0 then none
+  let inf := b0 &&& 0x40 != 0
+  let big := b0 &&& 0x20 != 0
+  let x := Field.ofBE ((b0 &&& 0x1f) :: bs.tail)
+  if inf then
+    if big || x != 0 then none else some ⟨0, 0, true⟩
+  else
+  if x ≥ P then none
+  let y2 := add (mul (sq x) x) 4
+  -- q ≡ 3 (mod 4)
+  let y := Field.powMod y2 ((P + 1) / 4) P
+  if sq y != y2 then none
+  let y := if (y > (P - 1) / 2) == big then y else Fq.neg y
+  let p : Aff := ⟨x, y, false⟩
+  if inSubgroup p then some p else none
+
 end JamCrypto.G1
