@@ -10,4 +10,4 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
   posterior state root, `anchorStateRoot`).
 * **GP v0.8.0**: eq. 11.36 (`reporting_assurance.tex` l. 373–377) requires
   h'_R = x_{lookup-anchor post-state} (`lookupAnchorStateRoot`).
-* **Verdict**: model wrong. **Status**: reported to Adam; not fixed here (jam-lean is read-only).
+* **Verdict**: model wrong. **Status**: confirmed by the jam-lean parent against eq. 11.36 (2026-11-15); a jam-lean session is fixing it with a regression test.
