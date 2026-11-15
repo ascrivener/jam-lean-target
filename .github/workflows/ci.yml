@@ -1,0 +1,28 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Forbidden constructs
+        run: ./scripts/check-forbidden.sh
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+      - name: Build (PVM and JAM of jam-lean, never Services)
+        run: lake build jam-lean-target
+      - name: Fetch the 0.8.0 fuzzer sessions
+        run: git clone -q https://github.com/jam-conformance/jam-fuzzing vendor/jam-fuzzing && git -C vendor/jam-fuzzing checkout -q cddba17d4a0798a7c794e003df0c21140e1fc09a
+      - name: Smoke test (session replay; known gap from slot 12, see docs/gaps.md)
+        run: .lake/build/bin/jam-lean-target session vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/no_forks | tail -1
