@@ -1,0 +1,38 @@
+{
+  "name": "code_trunc_threereg_term",
+  "initial-pc": 0,
+  "initial-gas": 1000,
+  "program": [0, 0, 3, 200, 135, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [4663, 0, 0, 0, 0, 0, 0, 4660, 3, 0, 0, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

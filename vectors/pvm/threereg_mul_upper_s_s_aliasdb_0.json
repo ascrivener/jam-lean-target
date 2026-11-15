@@ -1,0 +1,44 @@
+{
+  "name": "threereg_mul_upper_s_s_aliasdb_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 213, 135, 8, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 2
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 9223372036854775808
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 5
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 2, 18446744073709551615, 5, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9996
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 4,
+      "pc": 0
+    }
+  ]
+}

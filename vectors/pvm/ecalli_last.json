@@ -1,0 +1,21 @@
+{
+  "name": "ecalli_last",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 5, 51, 7, 9, 10, 5, 9],
+  "steps": [
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 10000
+      }
+    }
+  ],
+  "block-gas-costs": []
+}

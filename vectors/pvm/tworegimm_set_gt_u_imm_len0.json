@@ -1,0 +1,38 @@
+{
+  "name": "tworegimm_set_gt_u_imm_len0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 142, 121, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 9223372036854775809
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 9223372036854775809, 0, 1, 0, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

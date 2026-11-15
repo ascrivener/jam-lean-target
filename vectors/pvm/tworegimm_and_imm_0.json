@@ -1,0 +1,32 @@
+{
+  "name": "tworegimm_and_imm_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 132, 121, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 21845
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

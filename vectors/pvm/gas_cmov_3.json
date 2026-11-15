@@ -1,0 +1,38 @@
+{
+  "name": "gas_cmov_3",
+  "initial-pc": 0,
+  "initial-gas": 3,
+  "program": [0, 0, 7, 218, 135, 9, 219, 137, 7, 0, 73],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 3
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 4,
+      "pc": 0
+    }
+  ]
+}

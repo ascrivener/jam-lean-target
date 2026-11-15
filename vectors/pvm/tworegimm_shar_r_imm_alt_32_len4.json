@@ -1,0 +1,38 @@
+{
+  "name": "tworegimm_shar_r_imm_alt_32_len4",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 7, 146, 121, 128, 255, 255, 255, 0, 65],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 9223372036854775809
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 9223372036854775809, 0, 18446744073709551552, 0, 0, 0],
+        "pc": 6,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

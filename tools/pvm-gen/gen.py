@@ -188,7 +188,7 @@ def fam_gas(rng):
     for tag, instrs in progs.items():
         prog, _ = program(instrs, labels=labels.get(tag))
         steps = (mem_setup() if tag == "mem" else []) + setregs({8: 3, 9: 7})
-        top = 120 if tag in ("long", "loop") else 60
+        top = 160
         for g in list(range(0, top)) + [10000, 2**63 - 1]:
             run = [RUN, RUN] if tag == "ecalli" else [RUN]
             out.append(testcase(f"gas_{tag}_{g}", prog, steps + run, gas=g))

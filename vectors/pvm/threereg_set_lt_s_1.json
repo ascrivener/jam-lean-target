@@ -1,0 +1,44 @@
+{
+  "name": "threereg_set_lt_s_1",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 217, 135, 9, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 31
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 32768
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 3735928559
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 31, 32768, 1, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "gas_jump_17",
+  "initial-pc": 0,
+  "initial-gas": 17,
+  "program": [0, 0, 10, 40, 6, 0, 0, 0, 0, 200, 119, 7, 0, 97, 2],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 9,
+        "memory": [],
+        "gas": 0
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 15,
+      "pc": 0
+    },
+    {
+      "cost": 2,
+      "pc": 5
+    },
+    {
+      "cost": 2,
+      "pc": 6
+    }
+  ]
+}

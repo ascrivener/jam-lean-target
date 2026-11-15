@@ -1,0 +1,38 @@
+{
+  "name": "initpc_9",
+  "initial-pc": 9,
+  "initial-gas": 1000,
+  "program": [0, 0, 10, 51, 7, 1, 51, 8, 2, 200, 135, 9, 0, 73, 2],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 4660, 3, 0, 0, 0, 0],
+        "pc": 9,
+        "memory": [],
+        "gas": 997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

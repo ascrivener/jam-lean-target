@@ -1,0 +1,32 @@
+{
+  "name": "loadimm_5",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 51, 7, 33, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 5
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

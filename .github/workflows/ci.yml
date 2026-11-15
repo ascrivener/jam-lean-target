@@ -35,3 +35,5 @@ jobs:
           git clone -q --filter=blob:none --no-checkout https://github.com/koute/jamtestvectors vendor/jamtestvectors
           git -C vendor/jamtestvectors checkout -q 6bf3768e5b37bbe4ca5d6e1306284ecb27c0198f
           lake build pvmrun && .lake/build/bin/pvmrun check vendor/jamtestvectors/pvm/programs
+      - name: PVM edge-case vectors (vectors/pvm, GP v0.8.0 results)
+        run: .lake/build/bin/pvmrun check vectors/pvm

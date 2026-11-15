@@ -1,0 +1,44 @@
+{
+  "name": "threereg_div_u_32_aliasab_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 193, 119, 9, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 15
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 65
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 5
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 15, 65, 1, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9940
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 60,
+      "pc": 0
+    }
+  ]
+}

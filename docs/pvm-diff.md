@@ -69,7 +69,7 @@ assembler is `tools/pvm-gen/asm.py`.
 | `tworegimm` | 9,394 | every register-immediate ALU opcode on boundary values × boundary immediates; immediate lengths 0–4; same register |
 | `regimm` | 64 | `load_imm` / `load_imm_64`, all immediate lengths |
 | `memory` | 1,102 | every load/store form at page edges: first and last octet, straddling into the next page (RW→RO, RO→unmapped, RW→RW), read-only vs unmapped, below 2¹⁶, wrap at 2³², 64-bit addresses; store then fault; fault then resume after mapping |
-| `gas` | 988 | 14 programs (one block, two blocks, jump, branch, loop, div, memory, `ecalli`, cmov, `unlikely`, halt, 40-instruction block) at every gas from 0 up to past the cost |
+| `gas` | 2,268 | 14 programs (one block, two blocks, jump, branch, loop, div, memory, `ecalli`, cmov, `unlikely`, halt, 40-instruction block) at every gas from 0 up to past the cost |
 | `jumps` | 607 | jump-table jumps (valid, index 0, odd, out of range, to a non-block-start, mid-instruction, z = 1 and 4), the halt address and its neighbours, `jump_ind` wrap mod 2³², `load_imm_jump_ind` incl. r_A = r_B; static jumps and every branch to block start / non-block-start / mid-instruction / end / past end / negative / self; branch comparisons at sign boundaries |
 | `code` | 834 | every octet as an opcode; truncated immediates; code ending mid-instruction; no final terminator; bitmask edge cases (first bit 0, bits inside an instruction, non-zero padding, short or long mask, 7–17-octet code); skip lengths 0–30 for 13 opcodes; jump-table headers (z = 0–8, 255; length too long; 10⁶ entries); wrong code length; non-canonical varints; initial pc mid-instruction / at end / past end |
 | `ecalli` | 22 | host-call ids incl. sign-extended ones, `ecalli` as last instruction, gas at the boundary, resume |
@@ -80,8 +80,8 @@ instructions or jump-table entries) while the same fields still differ.
 
 ## Results (2026-11-15, PolkaVM 0.38.1)
 
-35,559 generated cases (default seed). One run takes Lean 5.4 s and PolkaVM 2.8 s.
-35,220 agree, including 998 where PolkaVM refuses the blob and Ψ panics before any step. Block
+36,839 generated cases (default seed). One run takes Lean 5.3 s and PolkaVM 2.9 s.
+36,500 agree, including 998 where PolkaVM refuses the blob and Ψ panics before any step. Block
 costs ϱ^Δ agree at every block start of every program both sides load.
 
 Every divergence falls into one of these classes:
@@ -133,3 +133,9 @@ POLKAVM_REF_STATIC=1`. The static memory map is needed because dynamic paging ne
 which this container forbids. D4 and D6 behave the same there: the blob is refused (validation at
 offset 0), and z = 0 panics. D5 needs `map` steps, which work only with dynamic paging, so it was
 not tested on the recompiler.
+
+## Exported vectors
+
+`vectors/pvm/` holds 1,408 vectors with GP v0.8.0 results. They are the agreeing edge cases plus
+every D1–D6 case. `vectors/pvm/README.md` lists them by class. CI runs `pvmrun check vectors/pvm`,
+which takes 0.2 s.

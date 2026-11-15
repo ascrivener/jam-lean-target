@@ -1,0 +1,33 @@
+{
+  "name": "clen_short",
+  "initial-pc": 0,
+  "initial-gas": 1000,
+  "program": [0, 0, 6, 50, 7, 0, 51, 8, 5, 0, 77],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 4660, 3, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 1000
+      }
+    }
+  ],
+  "block-gas-costs": []
+}

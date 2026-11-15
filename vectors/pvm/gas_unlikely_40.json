@@ -1,0 +1,38 @@
+{
+  "name": "gas_unlikely_40",
+  "initial-pc": 0,
+  "initial-gas": 40,
+  "program": [0, 0, 5, 2, 200, 135, 9, 0, 19],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0],
+        "pc": 4,
+        "memory": [],
+        "gas": 0
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 40,
+      "pc": 0
+    }
+  ]
+}

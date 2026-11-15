@@ -1,0 +1,26 @@
+{
+  "name": "loadimm64_27",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 11, 20, 7, 0, 0, 0, 0, 0, 0, 0, 128, 0, 1, 4],
+  "steps": [
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 9223372036854775808, 0, 0, 0, 0, 0],
+        "pc": 10,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

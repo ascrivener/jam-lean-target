@@ -1,0 +1,50 @@
+{
+  "name": "gas_ecalli_98",
+  "initial-pc": 0,
+  "initial-gas": 98,
+  "program": [0, 0, 6, 10, 3, 200, 135, 9, 0, 37],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 98
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 98
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 100,
+      "pc": 0
+    }
+  ]
+}

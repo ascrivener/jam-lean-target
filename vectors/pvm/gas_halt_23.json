@@ -1,0 +1,38 @@
+{
+  "name": "gas_halt_23",
+  "initial-pc": 0,
+  "initial-gas": 23,
+  "program": [0, 0, 7, 51, 0, 0, 0, 255, 50, 0, 33],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "halt",
+        "regs": [18446744073709486080, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 5,
+        "memory": [],
+        "gas": 0
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 23,
+      "pc": 0
+    }
+  ]
+}
