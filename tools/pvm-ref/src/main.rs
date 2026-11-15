@@ -92,7 +92,7 @@ fn execute(engine: &Engine, tc: &Value, strict: bool) -> (Vec<Value>, Option<Val
     module_config.set_strict(strict);
     module_config.set_gas_metering(Some(polkavm::GasMeteringKind::Sync));
     module_config.set_step_tracing(true);
-    module_config.set_dynamic_paging(true);
+    module_config.set_dynamic_paging(std::env::var("POLKAVM_REF_STATIC").is_err());
     module_config.set_cost_model(Some(CostModelKind::Full(CacheModel::L2Hit)));
 
     let load_error = |e: String| -> (Vec<Value>, Option<Value>) {
@@ -243,8 +243,17 @@ fn main() {
         std::process::exit(2);
     }
     let mut config = polkavm::Config::new();
-    config.set_backend(Some(polkavm::BackendKind::Interpreter));
-    config.set_allow_dynamic_paging(true);
+    // POLKAVM_REF_BACKEND=compiler selects the recompiler instead (spectool uses the interpreter).
+    let backend = match std::env::var("POLKAVM_REF_BACKEND").as_deref() {
+        Ok("compiler") => polkavm::BackendKind::Compiler,
+        _ => polkavm::BackendKind::Interpreter,
+    };
+    config.set_backend(Some(backend));
+    if std::env::var("POLKAVM_REF_SANDBOX").as_deref() == Ok("generic") {
+        config.set_sandbox(Some(polkavm::SandboxKind::Generic));
+        config.set_allow_experimental(true);
+    }
+    config.set_allow_dynamic_paging(std::env::var("POLKAVM_REF_STATIC").is_err());
     let engine = Engine::new(&config).unwrap();
 
     let files = collect(&args[2..]);

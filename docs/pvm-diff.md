@@ -96,3 +96,40 @@ Every divergence falls into one of these classes:
 | D6 | z = 0 with entries | `jump_ind` to j₀ = 0 | jumps to 0 | panic | see triage |
 | D7 | out-of-range jump-table entry, unused | | runs | strict: load error | setup; agree when non-strict |
 | D8 | pages below 2¹⁶ | | | cannot map | setup; not compared |
+
+Verdicts (parent session, against pvm.tex v0.8.0): Ψ is right in D4, D5 and D6. D1 and D2 follow
+later GP changes. D3, D7 and D8 come from representation or setup. All exported vectors carry the
+GP v0.8.0 result (Ψ's).
+
+### Where D4–D6 reach a JAM node (GP v0.8.0)
+
+Any service can deploy such a blob, or pass it to `machine`. Compilers don't emit them.
+
+* **Ψ_M** (`pvm.tex` §A.8) runs service code for is-authorized, refine and accumulate. It returns
+  u = ϱ − max(ϱ′, 0) and ☇/∞/output.
+  * **D4**: Ψ charges the block, then panics: u = ϱ^Δ of the first block, result ☇. If an
+    implementation treats a refused blob as ☇ without charging (as when deblob = ∇), u = 0.
+  * **D6**: Ψ loops until ∞: u = all the gas, result ∞. PolkaVM gives ☇, with u equal to one
+    block's cost.
+  * Accumulation: u feeds the accumulation statistics (π_S), and so the state root.
+  * Refine: u and the result (∞ vs ☇) go into the work digest, and so into the work-report hash.
+  * Is-authorized: the result decides whether the package is authorized.
+  * **D5** at Ψ_M level: F ends Ψ_M as ☇ with the same u, so the fault address is not visible.
+* **Inner PVMs** (`pvm_invocations.tex`, Ω_M `machine` l.~590, Ω_E `invoke` l.~680). These run
+  in refine only; their effect is on the work report.
+  * **D4**: `machine` returns HUH only when deblob(p, i) = ∇. A D4 blob deblobs fine, so the
+    service gets a handle. An implementation that validates as PolkaVM does would return HUH
+    instead, and ω′₇ goes into the service's registers.
+  * **D5**: `invoke` returns FAULT with ω′₈ = x, the page address. 0x21000 vs 0x22000 is visible
+    to the calling service.
+  * **D6**: `invoke` returns OOG vs PANIC, and different gas.
+
+### Newest PolkaVM
+
+0.38.1 is the newest crates.io release and was the head of polkavm master on 2026-11-15.
+
+The node-relevant recompiler backend was also tried, with `POLKAVM_REF_BACKEND=compiler
+POLKAVM_REF_STATIC=1`. The static memory map is needed because dynamic paging needs userfaultfd,
+which this container forbids. D4 and D6 behave the same there: the blob is refused (validation at
+offset 0), and z = 0 panics. D5 needs `map` steps, which work only with dynamic paging, so it was
+not tested on the recompiler.
