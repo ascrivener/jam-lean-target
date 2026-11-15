@@ -1,0 +1,42 @@
+{
+  "name": "gas_fall_3",
+  "initial-pc": 0,
+  "initial-gas": 3,
+  "program": [0, 0, 2, 1, 0, 3],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 1,
+        "memory": [],
+        "gas": 1
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    },
+    {
+      "cost": 2,
+      "pc": 1
+    }
+  ]
+}

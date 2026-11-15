@@ -1,0 +1,50 @@
+{
+  "name": "threereg_rot_r_64_rd23",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 222, 135, 23, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 0,
+        "value": 153
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 12,
+        "value": 119
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [153, 0, 0, 0, 0, 0, 0, 4660, 3, 0, 0, 0, 9223372036854776390],
+        "pc": 3,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "tworeg_reverse_bytes_same_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 110, 119, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 14059156431664513517
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 17077934797951081667, 0, 0, 0, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

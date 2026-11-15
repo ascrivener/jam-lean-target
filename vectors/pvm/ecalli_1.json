@@ -1,0 +1,52 @@
+{
+  "name": "ecalli_1",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 8, 10, 1, 51, 7, 9, 10, 1, 0, 165],
+  "steps": [
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "ecalli",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 9898,
+        "hostcall": 1
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "ecalli",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0],
+        "pc": 5,
+        "memory": [],
+        "gas": 9898,
+        "hostcall": 1
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0],
+        "pc": 7,
+        "memory": [],
+        "gas": 9898
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 102,
+      "pc": 0
+    }
+  ]
+}

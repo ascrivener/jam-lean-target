@@ -1,0 +1,38 @@
+{
+  "name": "code_mask_inside",
+  "initial-pc": 0,
+  "initial-gas": 1000,
+  "program": [0, 0, 4, 200, 135, 9, 0, 11],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 4660, 3, 0, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 995
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 5,
+      "pc": 0
+    }
+  ]
+}

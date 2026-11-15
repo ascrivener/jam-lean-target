@@ -1,0 +1,44 @@
+{
+  "name": "threereg_shlo_r_32_aliasdb_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 198, 135, 8, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 8
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 4294967295
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 5
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 8, 0, 5, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

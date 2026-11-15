@@ -1,0 +1,44 @@
+{
+  "name": "threereg_max_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 227, 135, 9, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 63
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 9223372039002259456
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 3735928559
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 63, 9223372039002259456, 63, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

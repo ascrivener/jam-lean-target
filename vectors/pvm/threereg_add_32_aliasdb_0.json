@@ -1,0 +1,44 @@
+{
+  "name": "threereg_add_32_aliasdb_0",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 190, 135, 8, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 15
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 127
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 5
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 15, 142, 5, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

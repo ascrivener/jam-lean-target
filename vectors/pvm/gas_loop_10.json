@@ -1,0 +1,42 @@
+{
+  "name": "gas_loop_10",
+  "initial-pc": 0,
+  "initial-gas": 10,
+  "program": [0, 0, 11, 149, 119, 1, 82, 23, 5, 253, 255, 255, 255, 0, 9, 4],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 5, 3, 7, 0, 0, 0],
+        "pc": 10,
+        "memory": [],
+        "gas": 0
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    },
+    {
+      "cost": 2,
+      "pc": 10
+    }
+  ]
+}

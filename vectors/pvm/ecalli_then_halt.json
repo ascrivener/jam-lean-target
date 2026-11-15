@@ -1,0 +1,45 @@
+{
+  "name": "ecalli_then_halt",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 10, 50, 7, 3],
+  "steps": [
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "ecalli",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 9900,
+        "hostcall": 0
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4294901760
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "halt",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 4294901760, 0, 0, 0, 0, 0],
+        "pc": 1,
+        "memory": [],
+        "gas": 9900
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 100,
+      "pc": 0
+    }
+  ]
+}

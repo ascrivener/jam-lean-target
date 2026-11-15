@@ -1,0 +1,32 @@
+{
+  "name": "tworegimm_cmov_nz_imm_1",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 148, 121, 64, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 21845
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 21845, 0, 0, 0],
+        "pc": 3,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

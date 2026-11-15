@@ -1,0 +1,47 @@
+{
+  "name": "mem_multi_store_u32_31fff",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 6, 61, 7, 255, 31, 3, 0, 33],
+  "steps": [
+    {
+      "map": {
+        "address": 196608,
+        "is-writable": true,
+        "length": 8192
+      }
+    },
+    {
+      "map": {
+        "address": 204800,
+        "is-writable": false,
+        "length": 4096
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 18446744073709551615
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "page-fault",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 18446744073709551615, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 9975,
+        "page-fault-address": 204800
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 25,
+      "pc": 0
+    }
+  ]
+}

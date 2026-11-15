@@ -1,0 +1,32 @@
+{
+  "name": "tworeg_move_reg_same_1",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 100, 119, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 15895745380871360276
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 15895745380871360276, 0, 0, 0, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

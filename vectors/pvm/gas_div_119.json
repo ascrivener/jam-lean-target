@@ -1,0 +1,38 @@
+{
+  "name": "gas_div_119",
+  "initial-pc": 0,
+  "initial-gas": 119,
+  "program": [0, 0, 10, 203, 135, 9, 206, 135, 9, 213, 33, 3, 0, 73, 2],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 119
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 120,
+      "pc": 0
+    }
+  ]
+}

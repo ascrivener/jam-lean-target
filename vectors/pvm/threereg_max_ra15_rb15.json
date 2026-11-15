@@ -1,0 +1,44 @@
+{
+  "name": "threereg_max_ra15_rb15",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 4, 227, 255, 9, 0, 9],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 4660
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 12,
+        "value": 85
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 4660, 3, 85, 0, 0, 85],
+        "pc": 3,
+        "memory": [],
+        "gas": 9997
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 3,
+      "pc": 0
+    }
+  ]
+}

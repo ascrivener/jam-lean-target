@@ -1,0 +1,42 @@
+{
+  "name": "gas_two_blocks_0",
+  "initial-pc": 0,
+  "initial-gas": 0,
+  "program": [0, 0, 8, 200, 135, 9, 1, 202, 135, 9, 0, 153],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 8,
+        "value": 3
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 9,
+        "value": 7
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 3, 7, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 0
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    },
+    {
+      "cost": 3,
+      "pc": 4
+    }
+  ]
+}

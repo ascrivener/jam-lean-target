@@ -1,0 +1,40 @@
+{
+  "name": "jthdr_z0",
+  "initial-pc": 0,
+  "initial-gas": 1000,
+  "program": [2, 0, 7, 50, 7, 0, 51, 8, 5, 0, 77],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 2
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "out-of-gas",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 10
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 22,
+      "pc": 0
+    },
+    {
+      "cost": 2,
+      "pc": 2
+    },
+    {
+      "cost": 2,
+      "pc": 3
+    }
+  ]
+}

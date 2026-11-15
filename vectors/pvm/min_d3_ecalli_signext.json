@@ -1,0 +1,27 @@
+{
+  "name": "min_d3_ecalli_signext",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 10, 255, 0, 5],
+  "steps": [
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "ecalli",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [],
+        "gas": 9900,
+        "hostcall": 18446744073709551615
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 100,
+      "pc": 0
+    }
+  ]
+}

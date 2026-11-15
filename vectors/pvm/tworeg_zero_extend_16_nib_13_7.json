@@ -1,0 +1,38 @@
+{
+  "name": "tworeg_zero_extend_16_nib_13_7",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 109, 125, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 32897
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 12,
+        "value": 16711935
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 32897, 0, 0, 0, 0, 32897],
+        "pc": 2,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}
