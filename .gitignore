@@ -1,2 +1,3 @@
 .lake/
 /vendor/
+/tests/gen/ark-vectors/target/

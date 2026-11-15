@@ -21,3 +21,10 @@ lean_lib JamTarget
 @[default_target]
 lean_exe «jam-lean-target» where
   root := `Main
+
+/-- Cryptography in plain Lean (Ed25519, Bandersnatch VRFs, the ring root and ring VRF). -/
+lean_lib JamCrypto
+
+/-- Ring root and ring VRF vectors: `lake exe ringtest [VECTOR-FILES]`. -/
+lean_exe ringtest where
+  root := `RingTest
