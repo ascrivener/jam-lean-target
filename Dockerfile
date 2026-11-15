@@ -1,13 +1,18 @@
+# syntax=docker/dockerfile:1
 # jam-lean-target: the jam-lean model of JAM (Gray Paper v0.8.0) as a fuzzer target.
 # Standard target packaging (jam-fuzzing fuzz-proto/README.md): JAM_FUZZ, JAM_FUZZ_SPEC,
 # JAM_FUZZ_DATA_PATH and JAM_FUZZ_SOCK_PATH.
 FROM debian:bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git clang && rm -rf /var/lib/apt/lists/*
-RUN curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+# Optional: trust an extra CA (e.g. a TLS-intercepting proxy): docker build --secret id=ca,src=<pem> …
+RUN --mount=type=secret,id=ca,required=false \
+    if [ -f /run/secrets/ca ]; then cp /run/secrets/ca /usr/local/share/ca-certificates/extra-ca.crt && update-ca-certificates; fi
+RUN curl -sSfL -o /tmp/elan-init.sh https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+    && sh /tmp/elan-init.sh -y --default-toolchain none && rm /tmp/elan-init.sh
 ENV PATH=/root/.elan/bin:$PATH
 WORKDIR /src
 COPY lean-toolchain lakefile.lean lake-manifest.json ./
-RUN lake update --keep-toolchain 2>/dev/null || true
+RUN lake update --keep-toolchain
 COPY . .
 RUN lake build jam-lean-target
 
