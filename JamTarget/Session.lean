@@ -3,6 +3,7 @@ import JAM.Sha512
 import JamTarget.Wire
 import JamTarget.StateDecode
 import JamCrypto.Ring
+import JamCrypto.Crypto
 
 /-!
 # One fuzzer session
@@ -15,12 +16,15 @@ Block import is jam-lean's Υ (`JAM.importBlock`, GP §4–§5), unchanged.
 
 ## Cryptography
 
-`JAM.Crypto` is a parameter of Υ. The session's `crypto` is built in `Main`:
-* the ring root O(**k**) is `JamCrypto.Ring.root` (KZG over BLS12-381, GP Appendix G), for the
-  chain's V validators;
-* until the remaining Lean implementations land, every Ed25519 signature, Bandersnatch IETF VRF
-  signature and Ring VRF proof is accepted (`oracleCrypto`), and the VRF output Y is
-  `JAM.Sha512.vrfOutput` (the output-point hash of the Bandersnatch VRF spec).
+`JAM.Crypto` is a parameter of Υ. The session's `crypto` (`sessionCrypto`) is all in plain Lean
+(`JamCrypto`): Ed25519 under ZIP-215 rules (Adam's decision 2026-11-15), the Bandersnatch IETF VRF,
+the ring root O(**k**) for the chain's V validators, and Ring VRF proofs (GP §3.8, Appendix G).
+
+Stopgap: jam-lean (pinned commit) builds its context strings with the GP's `$` sigil included
+(`contextString "$jam_ticket_seal"` gives the octets `$jam_ticket_seal`), while the signatures are
+over the octets without it (`jam_ticket_seal`; confirmed on the 0.8.0 vectors and fuzzer blocks).
+`stripSigil` removes a leading `$` from the context before verifying, until the jam-lean fix lands
+(then it is a no-op and can go).
 -/
 
 namespace JamTarget
@@ -40,9 +44,19 @@ def oracleCrypto : Crypto :=
     chain (GP `Cvalcount`). The ring domain is sized by V (see docs/crypto-notes.md). -/
 def validatorsOf (p : Params) : Nat := if p.coreCount == 2 then 6 else 1023
 
-/-- The session's crypto: the Lean ring root, stand-ins for the rest. -/
+/-- Drop a leading `$` (0x24) from a context or message (see the module note). -/
+def stripSigil (m : List UInt8) : List UInt8 :=
+  match m with
+  | 0x24 :: rest => rest
+  | _ => m
+
+/-- The session's crypto: everything in plain Lean, with the `$` stopgap. -/
 def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) : Crypto :=
-  JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto
+  let c := JamCrypto.withSignatures (JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto)
+  { c with
+    edVerify := fun k m s => c.edVerify k (stripSigil m) s
+    bsVerify := fun k ctx m s => c.bsVerify k (stripSigil ctx) m s
+    bsRingVerify := fun r ctx m pf => c.bsRingVerify r (stripSigil ctx) m pf }
 
 /-- A state the target holds: σ after the block with this header, and the headers 𝒜 its chain
     retains (oldest first, ending with this block's header). -/

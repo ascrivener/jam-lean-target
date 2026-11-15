@@ -1,13 +1,9 @@
 # Gaps
 
-1. **Cryptography is a stand-in** (`JamTarget/Session.lean`, `oracleCrypto`): every Ed25519,
-   Bandersnatch IETF VRF and Ring VRF signature is accepted; Y is computed; the ring root
-   O(**k**) is known only for key sequences seen in a state. Consequences seen so far:
-   * 0.8.0 `no_forks` session: slots 1–11 match polkajam; slot 12 (first epoch change) differs
-     only in γ_Z, because the Bootstrap workload reorders ι (`designate`), so γ_P' is a new key
-     sequence. jamduna agrees with polkajam there.
-   * 14–17 trace steps that polkajam rejects are imported (likely invalid signatures).
-   Plan: Ed25519 and Bandersnatch IETF VRF, then BLS12-381 KZG ring root and Ring VRF, in Lean.
+1. **Cryptography**: now all in plain Lean (`JamCrypto`: Ed25519 ZIP-215, Bandersnatch IETF VRF,
+   ring root, Ring VRF). Stopgap: a leading `$` is stripped from jam-lean's context strings until
+   jam-lean drops the sigil (approved by Adam, jam-lean PR pending). With it, every fuzzer signature
+   verifies. The 0.8.0 `no_forks` session now matches polkajam through slot 24; slot 25 is finding F2.
 2. **σ cannot be rebuilt from key-values that hold storage**: jam-lean's `ServiceAccount` keys
    storage by the unhashed key, T(σ) keeps only a hash. 52 of 89 published 0.8.0 traces start from
    such a state. A jam-lean representation change (Adam's decision).
