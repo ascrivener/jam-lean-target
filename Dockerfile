@@ -15,4 +15,6 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends socat libgmp10 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /src/.lake/build/bin/jam-lean-target /usr/local/bin/jam-lean-target
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY data/bls12-381-srs-2-11-uncompressed-zcash.bin /usr/local/share/jam-lean-target/srs.bin
+ENV JAM_LEAN_SRS=/usr/local/share/jam-lean-target/srs.bin
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

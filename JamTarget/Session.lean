@@ -2,6 +2,7 @@ import JAM.BlockImport
 import JAM.Sha512
 import JamTarget.Wire
 import JamTarget.StateDecode
+import JamCrypto.Ring
 
 /-!
 # One fuzzer session
@@ -14,26 +15,34 @@ Block import is jam-lean's Υ (`JAM.importBlock`, GP §4–§5), unchanged.
 
 ## Cryptography
 
-`JAM.Crypto` is a parameter of Υ. Until the Lean implementations of Ed25519 and Bandersnatch land
-(`JamCrypto`), the session supplies what jam-lean's trace runner supplies:
-* every Ed25519 signature, Bandersnatch IETF VRF signature and Ring VRF proof is accepted;
-* the VRF output Y is `JAM.Sha512.vrfOutput` (the output-point hash of the Bandersnatch VRF spec);
-* the ring root O(**k**) is known only for key sequences seen in a state with their γ_Z; another
-  sequence gives the empty root, so σ' then differs from the GP's (reported as a crypto gap).
+`JAM.Crypto` is a parameter of Υ. The session's `crypto` is built in `Main`:
+* the ring root O(**k**) is `JamCrypto.Ring.root` (KZG over BLS12-381, GP Appendix G), for the
+  chain's V validators;
+* until the remaining Lean implementations land, every Ed25519 signature, Bandersnatch IETF VRF
+  signature and Ring VRF proof is accepted (`oracleCrypto`), and the VRF output Y is
+  `JAM.Sha512.vrfOutput` (the output-point hash of the Bandersnatch VRF spec).
 -/
 
 namespace JamTarget
 
 open JAM
 
-/-- The crypto stand-ins (see the module note). -/
-def oracleCrypto (roots : List (List (List UInt8) × List UInt8)) : Crypto :=
+/-- The crypto stand-ins for what is not yet implemented (see the module note). -/
+def oracleCrypto : Crypto :=
   { edVerify := fun _ _ _ => true
     bsVerify := fun _ _ _ _ => true
     bsOut := Sha512.vrfOutput
-    bsRingRoot := fun ks => (roots.lookup ks).getD []
+    bsRingRoot := fun _ => []
     bsRingVerify := fun _ _ _ _ => true
     bsRingOut := Sha512.vrfOutput }
+
+/-- V, the number of validators: 6 for the tiny chain (the vectors' convention), 1023 for the full
+    chain (GP `Cvalcount`). The ring domain is sized by V (see docs/crypto-notes.md). -/
+def validatorsOf (p : Params) : Nat := if p.coreCount == 2 then 6 else 1023
+
+/-- The session's crypto: the Lean ring root, stand-ins for the rest. -/
+def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) : Crypto :=
+  JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto
 
 /-- A state the target holds: σ after the block with this header, and the headers 𝒜 its chain
     retains (oldest first, ending with this block's header). -/
@@ -46,6 +55,8 @@ structure Entry where
 /-- The session. -/
 structure Session where
   params : Params
+  /-- The cryptographic primitives (`sessionCrypto`). -/
+  crypto : Crypto := oracleCrypto
   /-- The features both peers support. -/
   features : Nat := 0
   initialized : Bool := false
@@ -118,7 +129,7 @@ def Session.handle (s : Session) (r : Request) : Session × Option Response × L
     | some par =>
       let L := s.params.maxLookupAnchorAge
       let chain : Chain := { ancestors := par.ancestors }
-      match importBlock s.params (oracleCrypto s.roots) chain par.state b with
+      match importBlock s.params s.crypto chain par.state b with
       | .error err =>
         (s, some (.error (reprStr err)), [s!"import slot {H.slot}: rejected: {reprStr err}"])
       | .ok (σ', _) =>
