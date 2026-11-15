@@ -79,7 +79,7 @@ fn memory_chunks(instance: &mut polkavm::RawInstance, pages: &[(u32, u32)]) -> V
 }
 
 /// Execute one testcase; returns the steps with every assert filled from the observed state.
-fn execute(engine: &Engine, tc: &Value, strict: bool) -> Vec<Value> {
+fn execute(engine: &Engine, tc: &Value, strict: bool) -> (Vec<Value>, Option<Value>) {
     let program = bytes_of(&tc["program"]);
     let initial_pc = u64_of(&tc["initial-pc"]) as u32;
     let initial_gas = tc["initial-gas"].as_i64().unwrap();
@@ -95,7 +95,7 @@ fn execute(engine: &Engine, tc: &Value, strict: bool) -> Vec<Value> {
     module_config.set_dynamic_paging(true);
     module_config.set_cost_model(Some(CostModelKind::Full(CacheModel::L2Hit)));
 
-    let load_error = |e: String| -> Vec<Value> {
+    let load_error = |e: String| -> (Vec<Value>, Option<Value>) {
         let mut out = Vec::new();
         let mut seen_run = false;
         for s in steps {
@@ -108,16 +108,23 @@ fn execute(engine: &Engine, tc: &Value, strict: bool) -> Vec<Value> {
                 out.push(json!({"assert": {"status": "load-error", "error": e}}));
             }
         }
-        out
+        (out, None)
     };
     let blob = match ProgramBlob::from_parts(parts) {
         Ok(b) => b,
         Err(e) => return load_error(format!("parse: {e}")),
     };
-    let module = match Module::from_blob(engine, &module_config, blob) {
+    let module = match Module::from_blob(engine, &module_config, blob.clone()) {
         Ok(m) => m,
         Err(e) => return load_error(format!("module: {e}")),
     };
+    // ϱ^Δ at every basic-block start, as PolkaVM computes it.
+    let mut costs = Vec::new();
+    for inst in blob.instructions() {
+        if let Some(c) = module.calculate_gas_cost_for(inst.offset) {
+            costs.push(json!({"pc": inst.offset.0, "cost": c}));
+        }
+    }
     let mut instance = module.instantiate().unwrap();
     instance.set_gas(initial_gas);
     instance.set_next_program_counter(polkavm::ProgramCounter(initial_pc));
@@ -226,7 +233,7 @@ fn execute(engine: &Engine, tc: &Value, strict: bool) -> Vec<Value> {
             other => panic!("unknown step {other}"),
         }
     }
-    out
+    (out, Some(Value::Array(costs)))
 }
 
 fn main() {
@@ -255,27 +262,30 @@ fn main() {
     }
     let total = cases.len();
     for (f, tc) in &cases {
-        let got = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| execute(&engine, tc, true))) {
+        let (got, costs) = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| execute(&engine, tc, true))) {
             // Strict mode (as spectool) refuses out-of-range jump-table entries, which GP v0.8.0
             // allows (they only matter when used): run those non-strict and say so.
-            Ok(g) if g.iter().any(|s| s["assert"]["error"] == json!("module: out of range jump table entry found")) => {
-                let mut g2 = execute(&engine, tc, false);
+            Ok((g, _)) if g.iter().any(|s| s["assert"]["error"] == json!("module: out of range jump table entry found")) => {
+                let (mut g2, c2) = execute(&engine, tc, false);
                 for s in g2.iter_mut() {
                     if let Some(a) = s.get_mut("assert").and_then(|a| a.as_object_mut()) {
                         a.insert("strict-error".into(), json!("out of range jump table entry found"));
                     }
                 }
-                g2
+                (g2, c2)
             }
             Ok(g) => g,
             Err(e) => {
                 let msg = e.downcast_ref::<String>().cloned().or(e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
-                vec![json!({"run": {}}), json!({"assert": {"status": "ref-crash", "error": msg}})]
+                (vec![json!({"run": {}}), json!({"assert": {"status": "ref-crash", "error": msg}})], None)
             }
         };
         if args[1] == "run" {
             let mut t = tc.as_object().unwrap().clone();
             t.insert("steps".into(), Value::Array(got));
+            if let Some(c) = costs {
+                t.insert("block-gas-costs".into(), c);
+            }
             println!("{}", serde_json::to_string(&Value::Object(t)).unwrap());
         } else {
             let exp: Vec<&Value> = tc["steps"].as_array().unwrap().iter().filter_map(|s| s.get("assert")).collect();

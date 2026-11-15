@@ -55,3 +55,44 @@ On the official vectors (koute/jamtestvectors `pvm/programs` at 6bf3768, GP 0.8.
 | `pvmdiff.py` | 364 / 364 agree | |
 
 CI runs `pvmrun check` over these vectors.
+
+## Generators
+
+`python3 tools/pvm-gen/gen.py OUTDIR [--seed N] [--families …]` writes one JSONL file per family. It
+is deterministic: the default seed is 20261115, and the same seed gives the same cases. The
+assembler is `tools/pvm-gen/asm.py`.
+
+| Family | Cases | What |
+| --- | --- | --- |
+| `threereg` | 16,031 | every three-register opcode on 300 boundary pairs (0, 1, −1, 2³¹, 2³²−1, 2⁶³, 2⁶⁴−1, sign boundaries, shift amounts ≥ width, …); register aliasing (d = a, d = b, a = b); register nibbles 13–15; third-register octets 12–255 (GP #554) |
+| `tworeg` | 517 | every two-register opcode on boundary values, same-register forms, nibbles 13–15 |
+| `tworegimm` | 9,394 | every register-immediate ALU opcode on boundary values × boundary immediates; immediate lengths 0–4; same register |
+| `regimm` | 64 | `load_imm` / `load_imm_64`, all immediate lengths |
+| `memory` | 1,102 | every load/store form at page edges: first and last octet, straddling into the next page (RW→RO, RO→unmapped, RW→RW), read-only vs unmapped, below 2¹⁶, wrap at 2³², 64-bit addresses; store then fault; fault then resume after mapping |
+| `gas` | 988 | 14 programs (one block, two blocks, jump, branch, loop, div, memory, `ecalli`, cmov, `unlikely`, halt, 40-instruction block) at every gas from 0 up to past the cost |
+| `jumps` | 607 | jump-table jumps (valid, index 0, odd, out of range, to a non-block-start, mid-instruction, z = 1 and 4), the halt address and its neighbours, `jump_ind` wrap mod 2³², `load_imm_jump_ind` incl. r_A = r_B; static jumps and every branch to block start / non-block-start / mid-instruction / end / past end / negative / self; branch comparisons at sign boundaries |
+| `code` | 834 | every octet as an opcode; truncated immediates; code ending mid-instruction; no final terminator; bitmask edge cases (first bit 0, bits inside an instruction, non-zero padding, short or long mask, 7–17-octet code); skip lengths 0–30 for 13 opcodes; jump-table headers (z = 0–8, 255; length too long; 10⁶ entries); wrong code length; non-canonical varints; initial pc mid-instruction / at end / past end |
+| `ecalli` | 22 | host-call ids incl. sign-extended ones, `ecalli` as last instruction, gas at the boundary, resume |
+| `random` | 6,000 | random programs (1–12 instructions over all opcodes) with memory, jump tables and two runs |
+
+`scripts/pvmmin.py` minimises divergences greedily (drop steps, shrink registers, drop
+instructions or jump-table entries) while the same fields still differ.
+
+## Results (2026-11-15, PolkaVM 0.38.1)
+
+35,559 generated cases (default seed). One run takes Lean 5.4 s and PolkaVM 2.8 s.
+35,220 agree, including 998 where PolkaVM refuses the blob and Ψ panics before any step. Block
+costs ϱ^Δ agree at every block start of every program both sides load.
+
+Every divergence falls into one of these classes:
+
+| | Class | Minimal case | Ψ (GP v0.8.0) | PolkaVM | Reading |
+| --- | --- | --- | --- | --- | --- |
+| D1 | three-register r_D octet ≥ 16 | `add_64` r7, r8, octet 16 | ω₁₂ (min(12, 16)) | ω₀ (16 mod 16) | follows GP #554 |
+| D2 | jump-table entry size z > 4 | z = 5, no entries | runs | load error | follows GP #559 |
+| D3 | `ecalli` id with bit 31 set | `ecalli` −1 | 2⁶⁴ − 1 (𝒳) | 2³² − 1 (u32) | representation |
+| D4 | last instruction can fall off the end (branch, `fallthrough`) | code [`fallthrough`] | panic after charging the block | load error | see triage |
+| D5 | store straddling a read-only page into an unmapped one | `store_u16` at 0x21FFF | fault 0x21000 (min x) | fault 0x22000 | see triage |
+| D6 | z = 0 with entries | `jump_ind` to j₀ = 0 | jumps to 0 | panic | see triage |
+| D7 | out-of-range jump-table entry, unused | | runs | strict: load error | setup; agree when non-strict |
+| D8 | pages below 2¹⁶ | | | cannot map | setup; not compared |

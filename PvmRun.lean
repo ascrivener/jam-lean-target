@@ -9,8 +9,8 @@ runs as the proved-equal `PVM.psiFast`).
 
 * `run`   prints each testcase as one JSON line, with every `assert` step replaced by the state Ψ
           actually produced (an `assert` is inserted after a `run` that has none).
-* `check` compares against the files' `assert` steps (the fields they give); exits 1 on any
-          mismatch.
+* `check` compares against the files' `assert` steps (the fields they give) and, when non-empty,
+          `block-gas-costs` (ϱ^Δ at every n ∈ ϖ); exits 1 on any mismatch.
 
 Conventions (as in the vectors and jam-lean's own runner `Tests/PvmTest`, which we may not import):
 
@@ -94,6 +94,14 @@ structure VmState where
   charged : Bool := false
   regs : Regs := Vector.replicate 13 0
   mem : Memory := .empty
+
+/-- ϱ^Δ(**c**, **k**, n) for every n ∈ ϖ (GP v0.8.0 §A.9), as `{pc, cost}` objects; `none` when the
+    blob does not deblob (then Ψ panics before any step). -/
+def blockCostsJson (p : ByteArray) : Option Json := do
+  let P ← Blob.parse? p
+  if !P.vBlob then none
+  let starts := (List.range P.code.size).filter P.isBlockStart
+  return Json.arr (starts.toArray.map fun (n : Nat) => Json.mkObj [("pc", Lean.toJson n), ("cost", Lean.toJson (P.blockCost n))])
 
 def isAssertAt (steps : Array Json) (k : Nat) : Bool :=
   match steps[k]? with
@@ -205,11 +213,22 @@ def main (args : List String) : IO UInt32 := do
         IO.eprintln s!"ERROR {f}: {e}"
       | .ok steps =>
         if mode == "run" then
-          stdout.putStrLn (j.setObjVal! "steps" (Json.arr steps)).compress
+          let j := j.setObjVal! "steps" (Json.arr steps)
+          let j := match blockCostsJson ((bytesOf ((j.getObjValD "program"))).toOption.getD .empty) with
+            | some c => j.setObjVal! "block-gas-costs" c
+            | none => j.setObjVal! "block-gas-costs" (Json.arr #[])
+          stdout.putStrLn j.compress
           stdout.flush
         else
           let exp := asserts ((j.getObjValD "steps").getArr?.toOption.getD #[])
-          if let some e := compare exp (asserts steps) then
+          let costErr : Option String := match j.getObjVal? "block-gas-costs" with
+            | .ok (.arr want) =>
+              if want.isEmpty then none
+              else
+                let got := (blockCostsJson ((bytesOf (j.getObjValD "program")).toOption.getD .empty)).getD (Json.arr #[])
+                if got == Json.arr want then none else some s!"block-gas-costs: got {got.compress}"
+            | _ => none
+          if let some e := (compare exp (asserts steps)).or costErr then
             failed := failed + 1
             IO.eprintln s!"FAIL {f}: {e}"
     if mode == "check" then

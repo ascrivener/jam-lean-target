@@ -57,6 +57,8 @@ def classify(lt, rt):
                 diff.add(k)
         if diff:
             break
+    if not diff and "block-gas-costs" in rt and lt.get("block-gas-costs") != rt["block-gas-costs"]:
+        diff.add("block-gas-costs")
     return diff, False
 
 
