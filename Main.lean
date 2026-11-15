@@ -35,6 +35,15 @@ def logErr (lines : List String) : IO Unit := do
   for l in lines do e.putStrLn s!"[jam-lean] {l}"
   e.flush
 
+/-- The SRS for the ring root: `JAM_LEAN_SRS`, default `data/bls12-381-srs-2-11-uncompressed-zcash.bin`. -/
+def loadSrs : IO JamCrypto.Ring.Srs := do
+  let path := (← IO.getEnv "JAM_LEAN_SRS").getD "data/bls12-381-srs-2-11-uncompressed-zcash.bin"
+  return JamCrypto.Ring.withSelectors (← JamCrypto.Ring.Srs.load path)
+
+/-- A fresh session with the full crypto. -/
+def newSession (p : Params) : IO Session := do
+  return { params := p, crypto := sessionCrypto (← loadSrs) p }
+
 def getParams : IO Params := do
   let spec := (← IO.getEnv "JAM_FUZZ_SPEC").getD "tiny"
   match paramsOf spec with
@@ -45,7 +54,7 @@ def serve : IO UInt32 := do
   let p ← getParams
   let i ← IO.getStdin
   let o ← IO.getStdout
-  let mut s : Session := { params := p }
+  let mut s ← newSession p
   repeat
     let some len ← readExact i 4 | break
     let n := PVM.Num.decodeLE len.toList
@@ -71,7 +80,7 @@ def replaySession (dir : System.FilePath) : IO Bool := do
   let p ← getParams
   let files := ((← dir.readDir).map (·.fileName)).filter (·.endsWith ".bin") |>.qsort (· < ·)
   let reqs := files.filter (fun f => (f.splitOn "_fuzzer_").length == 2)
-  let mut s : Session := { params := p }
+  let mut s ← newSession p
   let mut ok := 0
   let mut bad := 0
   for f in reqs do
@@ -123,7 +132,8 @@ def replayTrace (dir : System.FilePath) : IO (Nat × Nat × List String) := do
   let st1 ← readStep p (dir / first)
   -- Initialize from genesis.bin when present, else from the first step's pre-state (whose header
   -- the trace does not hold: the entry is keyed by the first block's parent hash).
-  let mut s : Session := { params := p }
+  let s00 ← newSession p
+  let mut s := s00
   let mut notes : List String := []
   let hasGen ← (dir / "genesis.bin").pathExists
   let (initHeader, initKvs) ← if hasGen then do
@@ -152,7 +162,7 @@ def replayTrace (dir : System.FilePath) : IO (Nat × Nat × List String) := do
     let held := s.entries.any fun e =>
       e.hash == st.block.header.parent.toList && e.state.root == st.pre.1
     let s0 : Session ← if f == first || held then pure s else do
-      let (sx, rx, lx) := ({ params := p } : Session).handle (.initialize st.block.header st.pre.2 [])
+      let (sx, rx, lx) := s00.handle (.initialize st.block.header st.pre.2 [])
       match rx with
       | some (.stateRoot r) =>
         if r != st.pre.1 then notes := notes ++ [s!"{f}: pre-state not reproduced ({lx.length} notes): {String.intercalate "; " lx}"]
