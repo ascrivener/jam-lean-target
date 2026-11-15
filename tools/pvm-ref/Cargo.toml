@@ -1,0 +1,15 @@
+[package]
+name = "pvm-ref"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# The reference side of the PVM differential harness: PolkaVM's interpreter, configured exactly as
+# PolkaVM's `spectool` configures it to generate the koute/jamtestvectors `pvm/programs` vectors.
+[dependencies]
+polkavm = "=0.38.1"
+polkavm-common = "=0.38.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[workspace]

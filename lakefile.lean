@@ -32,3 +32,8 @@ lean_exe ringtest where
 /-- Ed25519 and Bandersnatch IETF VRF vectors: `lake exe cryptotest [DIR]`. -/
 lean_exe cryptotest where
   root := `JamCryptoTest
+
+/-- The Lean side of the PVM differential harness (jam-lean's Ψ on jamtestvectors-format cases):
+    `lake exe pvmrun check vectors/pvm`, `lake exe pvmrun run FILE|DIR…`. -/
+lean_exe pvmrun where
+  root := `PvmRun
