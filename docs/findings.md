@@ -75,3 +75,33 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
 * **Verdict**: model right for GP v0.8.0; implementations and fuzzer right for GP after #563. Logged
   as "the process follows GP #563" under Adam's strictly-0.8.0 decision.
 * **Status**: explained 2026-11-15. Nothing to report.
+
+## F4–F6. PolkaVM vs GP v0.8.0 at the PVM level
+
+Found by the PVM differential harness (`docs/pvm-diff.md`, PR #7): jam-lean's PVM against PolkaVM
+0.38.1 (newest release, = master a485609 on 2026-11-15), interpreter with spectool's setup and,
+where possible, the recompiler. Neither GP v0.8.0 nor any later GP change (#554, #559, #582,
+#588 read) explains them. In all three the model follows GP v0.8.0 and PolkaVM does not. PolkaVM
+is the PVM behind polkajam, the fuzzer's reference; whether polkajam (or other implementations)
+behaves the same at block level is not yet tested.
+
+| | Minimised case | Model (GP v0.8.0) | PolkaVM | GP v0.8.0 reference |
+| --- | --- | --- | --- | --- |
+| F4 (D4) | blob `[0,0,1,1,1]` (code = one `fallthrough`); also a branch as last instruction | valid blob: Ψ charges the block, then panics | refused at load ("validation failed"); interpreter and recompiler | 𝔳_blob only requires the last instruction ∈ T (`pvm.tex` l. 57–63); branch/fallthrough ∈ T; panic via branch/ı+1+skip ∉ ϖ (l. 255–259) |
+| F5 (D5) | `store_u16` at 0x21FFF, page 0x21000 read-only, 0x22000 unmapped | fault at 0x21000 | fault at 0x22000 (interpreter) | ε^μ: x has every written index not in 𝕍*_μ, so min(x) = 0x21FFF → page 0x21000 (l. 168–179; prose: "lowest page address to be written which is inaccessible") |
+| F6 (D6) | blob `[1,0,2,50,7,1]` (|j| = 1, z = 0), `jump_ind` to 2, gas 100 | j₀ = 0 ∈ ϖ, so continues at 0 and loops to ∞ | panic, one block's gas; interpreter and recompiler | E_0 ⇒ j₀ = 0; djump (eq. `jumptablealignment`, l. 267–271); still valid after #559 (z ≤ 4) |
+
+**Where they reach consensus** (GP v0.8.0):
+* Ψ_M (is-authorized, refine, accumulate): F4 — GP charges a block then ☇; refusing at load would
+  give u = 0. F6 — GP gives ∞ with all gas used, PolkaVM ☇ with one block. u enters π_S (state
+  root) for accumulate and the work digest (report hash) for refine; the result decides
+  is-authorized. F5 is invisible at Ψ_M (fault ends as ☇ with the same u).
+* Inner PVM (refine's `machine`/`invoke`): F4 — `machine` returns HUH only if deblob = ∇, so GP
+  gives a handle where a PolkaVM-style validator would return HUH; F5 — `invoke` returns FAULT with
+  ω8 = the address (0x21000 vs 0x22000); F6 — OOG vs PANIC with different gas.
+
+**Verdict**: model right per GP v0.8.0 in all three; PolkaVM is stricter (F4, F6) or reports a
+different page (F5). Vectors with the GP v0.8.0 results are exported (vectors PR after #7).
+**Status**: found 2026-11-15. Not reported anywhere; disclosure is Adam's call. Next: check whether
+polkajam and the 0.8.0 implementations show these at block level (needs a service whose code
+exercises them).
