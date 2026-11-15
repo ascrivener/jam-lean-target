@@ -14,7 +14,7 @@ Only the `PVM` and `JAM` libraries of jam-lean are used, never `Services`. -/
 package «jam-lean-target» where
   leanOptions := #[⟨`autoImplicit, false⟩]
 
-require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "2b88de92910b15af1935c571d4517c3b017923a3"
+require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "208cc20f57000953f7fa80d92b5e64980d0e9bd5"
 
 lean_lib JamTarget
 
