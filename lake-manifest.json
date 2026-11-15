@@ -1,0 +1,16 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/ascrivener/jam-lean",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "bda9d741fd6e3db69aa6f6f52f6574a38d084538",
+   "name": "«jam-lean»",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "bda9d741fd6e3db69aa6f6f52f6574a38d084538",
+   "inherited": false,
+   "configFile": "lakefile.lean"}],
+ "name": "«jam-lean-target»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}
