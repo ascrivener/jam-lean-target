@@ -6,10 +6,14 @@ import JAM.Sha512
 
 s ∈ 𝕍̄_k⟨m⟩ (GP v0.8.0 §3.8.2) is "a valid Ed25519 signature, defined by RFC 8032". RFC 8032 leaves
 open whether the verification equation is multiplied by the cofactor 8, and implementations differ
-in whether they accept non-canonical point encodings. Those choices are the `Rules`; `zip215` is
-the default (ZIP 215: any encoding of a curve point, S < L, cofactored equation), the behaviour the
-JAM conformance vectors target. `rfc8032Strict` rejects non-canonical encodings (§5.1.3 steps 1
-and 4).
+in whether they accept non-canonical point encodings. Those choices are the `Rules`. The model
+uses `zip215` (ZIP 215: any encoding of a curve point, S < L, cofactored equation; Adam's decision
+2026-11-15), the behaviour the JAM conformance vectors target. `rfc8032Strict` and
+`rfc8032Cofactorless` reject non-canonical encodings (§5.1.3 steps 1 and 4); they are kept for the
+test vectors.
+
+The message is taken as given: a GP context such as `$jam_valid` stands for the octets
+"jam_valid", without the `$` (see docs/crypto-notes.md).
 -/
 
 namespace JamCrypto.Ed25519
