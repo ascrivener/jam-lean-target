@@ -10,7 +10,7 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
   posterior state root, `anchorStateRoot`).
 * **GP v0.8.0**: eq. 11.36 (`reporting_assurance.tex` l. 373–377) requires
   h'_R = x_{lookup-anchor post-state} (`lookupAnchorStateRoot`).
-* **Verdict**: model wrong. **Status**: confirmed by the jam-lean parent against eq. 11.36 (2026-11-15); a jam-lean session is fixing it with a regression test.
+* **Verdict**: model wrong. **Status**: confirmed by the jam-lean parent against eq. 11.36 (2026-11-15); fixed in jam-lean PR #195 (acb9e94) with regression guards; jam-lean-target pins it since 2026-11-15.
 
 ## F2. `grow_heap` out of gas: GP 0.8.0 charges nothing, the process charges all (GP #533)
 
@@ -105,3 +105,11 @@ different page (F5). Vectors with the GP v0.8.0 results are exported (vectors PR
 **Status**: found 2026-11-15. Not reported anywhere; disclosure is Adam's call. Next: check whether
 polkajam and the 0.8.0 implementations show these at block level (needs a service whose code
 exercises them).
+
+## F0. jam-lean: signing context strings kept the GP's `$` sigil
+
+* **Model**: `JAM.contextString "$jam_ticket_seal"` gave the octets `$jam_ticket_seal`, so with real
+  crypto every ticket, seal, entropy and Ed25519 signature failed.
+* **GP v0.8.0**: `$` marks the set of ASCII strings 𝔹_$ (`notation.tex` l. 149); the 0.8.0 vectors
+  (58 real ticket proofs) and every fuzzer block verify only without it.
+* **Verdict**: model wrong. **Status**: fixed in jam-lean PR #196 (2b88de9); pinned here.
