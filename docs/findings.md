@@ -101,8 +101,13 @@ behaves the same at block level is not yet tested.
   ω8 = the address (0x21000 vs 0x22000); F6 — OOG vs PANIC with different gas.
 
 **Verdict**: model right per GP v0.8.0 in all three; PolkaVM is stricter (F4, F6) or reports a
-different page (F5). Vectors with the GP v0.8.0 results are exported (vectors PR after #7).
-**Status**: found 2026-11-15. Not reported anywhere; disclosure is Adam's call. Next: check whether
+different page (F5). Vectors with the GP v0.8.0 results are in `vectors/pvm` (`min_d4`…`min_d6`).
+**Status** (2026-11-16; Adam: keep public):
+* F4: reported by Adam as paritytech/polkavm#455.
+* F5: already known upstream as paritytech/polkavm#429 (opened 2026-10-15): the interpreter reports
+  the upper page; the recompiler agrees with the GP.
+* F6: same root cause as paritytech/polkavm#447 (opened 2026-11-02): a jump-table entry pointing at
+  code offset 0 is dropped and the jump traps; with z = 0 every entry is 0. Next: check whether
 polkajam and the 0.8.0 implementations show these at block level (needs a service whose code
 exercises them).
 
