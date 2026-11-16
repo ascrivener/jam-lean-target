@@ -13,8 +13,8 @@ at pc 5 (GP v0.8.0 Ψ_R, Ψ_A).
   3. deletes key "k" + ((n + 2) mod 4) (write with v_Z = 0; absent keys are a no-op);
   4. by m = n mod 32 (two 64-octet preimages P1, P2, hashes in the read-only data):
        P1: m = 1 solicit (request []), 2 forget (deletes []), 3 solicit, 4 provide ([t]),
-           5 forget ([t, t']), 21 forget (y now older than the expunge period: deletes the
-           request and the preimage);
+           5 forget ([t, t']), 29 forget (some 48 slots later, so y < t − 𝖣 holds
+           strictly: deletes the request and the preimage);
        P2: m = 9 solicit, 10 provide, 13 forget; over two cycles this gives [x, y] → solicit
            [x, y, t] → provide HUH → forget of an old y [w, t];
        m = 7: transfer 1000 to the Bootstrap service (0) with gas limit 10^6.
@@ -61,7 +61,7 @@ accumulate = (
 # m = n mod 32 -> action
 ACTIONS = [
     (1, host(SOLICIT, O_H1, 64)), (2, host(FORGET, O_H1, 64)), (3, host(SOLICIT, O_H1, 64)),
-    (4, host(PROVIDE, SELF, O_P1, 64)), (5, host(FORGET, O_H1, 64)), (21, host(FORGET, O_H1, 64)),
+    (4, host(PROVIDE, SELF, O_P1, 64)), (5, host(FORGET, O_H1, 64)), (29, host(FORGET, O_H1, 64)),
     (9, host(SOLICIT, O_H2, 64)), (10, host(PROVIDE, SELF, O_P2, 64)), (13, host(FORGET, O_H2, 64)),
     (7, host(TRANSFER, 0, 1000, 10 ** 6, RO)),
 ]
