@@ -22,6 +22,7 @@ binds the socket with socat, one process per fuzzer session.
 
 * `docs/gaps.md`: what the model or the protocol cannot do yet.
 * `docs/findings.md`: divergences, with GP references and verdicts.
+* `docs/shadow.md`: shadow mode (`scripts/shadow.py`), following a chain block by block against the model.
 
 ## Rules
 

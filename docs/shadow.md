@@ -81,3 +81,22 @@ verdict, root and post-state where known (`Feed` and `Step` in the script).
   `steps()` interface, pulling blocks and roots from a node (JIP-2 RPC or a debug endpoint).
   No node could be run in this sandbox yet. Starting from a mid-chain snapshot also needs
   `docs/gaps.md` #2 closed when the snapshot holds storage.
+
+## A PolkaJam testnet feed (GitHub Actions)
+
+No node binary can run in the development sandbox, so `.github/workflows/polkajam-feed.yml` runs
+one in this repo's Actions. It is started manually (Actions → "polkajam feed" → Run workflow;
+inputs: release `tag`, default `v0.8.0`; `blocks`, the slot to run to; `rpc`, the JIP-2 endpoint;
+extra `testnet_args`). It:
+
+1. downloads the release's Linux assets from `paritytech/polkajam-releases`, lists them
+   (`release.txt`) and unpacks them;
+2. saves `--help` for every executable and its subcommands (`help/`), flagging pages that mention
+   export, dump, block or state;
+3. runs `polkajam-testnet` and records its best chain over JIP-2 with `scripts/polkajam_chain.py`:
+   per block the slot, header hash and posterior state root (`chain.json`);
+4. uploads `feed/` as the artifact `polkajam-feed`, with the testnet log and the files it wrote.
+
+JIP-2 has no method that returns blocks or full states (`bestBlock`, `parent` and `stateRoot`
+are the chain methods), so `chain.json` gives roots without blocks. A `dump` feed also needs
+the blocks, from an export command if the help pages show one. That conversion is the next step.
