@@ -1,4 +1,5 @@
 import JamTarget.Session
+import JamTarget.CraftCli
 
 /-!
 # `jam-lean-target`
@@ -14,6 +15,9 @@ import JamTarget.Session
 * `jam-lean-target trace DIR …` — import block-import traces (`genesis.bin` optional, then
   `NNNNNNNN.bin` = ℰ(pre-state, block, post-state)) through the same session handler and compare
   every post-state root.
+* `jam-lean-target craft SPEC OUTDIR` — craft valid blocks signed with the JIP-5 development keys
+  from a text description and write them as a recorded session with the model's answers
+  (`JamTarget.CraftCli`).
 
 `JAM_FUZZ_SPEC` (`tiny` or `full`, default `tiny`) selects the parameters.
 -/
@@ -209,6 +213,17 @@ def main (args : List String) : IO UInt32 := do
       for l in notes do IO.println s!"  {l}"
       if g != n then allOk := false
     return if allOk then 0 else 1
+  | ["craft", spec, out] =>
+    let p ← getParams
+    let (init, specs) ← CraftCli.parseSpec p (← IO.FS.readFile spec)
+    let some init := init | IO.eprintln "craft: no 'init'"; return 2
+    let (h, kvs) ← CraftCli.readInitialize p init
+    let σ ← CraftCli.decodeState p kvs
+    let c ← CraftCli.craftSession (← newSession p) h σ specs out
+    for (hh, r) in c.steps do
+      IO.println s!"block {hex hh}: {match r with | .stateRoot x => s!"root {hex x}" | .error e => s!"ERROR {e}" | _ => "?"}"
+    IO.println s!"signatures valid (JamCrypto): {c.sigsOk}"
+    return if c.sigsOk && c.steps.all (fun (_, r) => match r with | .stateRoot _ => true | _ => false) then 0 else 1
   | _ =>
-    IO.eprintln "usage: jam-lean-target [serve | session DIR … | trace DIR …]"
+    IO.eprintln "usage: jam-lean-target [serve | session DIR … | trace DIR … | craft SPEC OUTDIR]"
     return 2
