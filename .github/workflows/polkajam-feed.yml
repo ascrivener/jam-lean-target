@@ -20,6 +20,12 @@ on:
       testnet_args:
         description: extra arguments for polkajam-testnet
         default: ''
+      work_items:
+        description: work items to submit to the Bootstrap service (jamt item) while the chain runs
+        default: '10'
+      peer:
+        description: JAM-NP address (UDP) of the node to fetch blocks from
+        default: 127.0.0.1:40000
 permissions:
   contents: read
 jobs:
@@ -33,8 +39,21 @@ jobs:
       BLOCKS: ${{ inputs.blocks }}
       RPC: ${{ inputs.rpc }}
       TESTNET_ARGS: ${{ inputs.testnet_args }}
+      WORK_ITEMS: ${{ inputs.work_items }}
+      PEER: ${{ inputs.peer }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        with:
+          path: .lake
+          key: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+      - name: Build the target
+        run: lake build jam-lean-target
       - name: Download the release
         run: |
           mkdir -p "$OUT/help" pj
@@ -75,7 +94,7 @@ jobs:
         run: |
           # PolkaVM's Linux sandbox needs unprivileged userfaultfd and user namespaces.
           sudo sysctl -w vm.unprivileged_userfaultfd=1 kernel.apparmor_restrict_unprivileged_userns=0
-          pip install -q websockets
+          pip install -q websockets aioquic
           tn=$(grep -E '(^|/)polkajam-testnet$' "$OUT/executables.txt" | head -1)
           td=$(grep -E '(^|/)jam-telemetry-dumper$' "$OUT/executables.txt" | head -1)
           [ -n "$tn" ] || { echo "no polkajam-testnet in the release"; exit 1; }
@@ -87,10 +106,29 @@ jobs:
           fi
           "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
           echo $! > ../testnet.pid
-          sleep 20; (ss -ltnp || true) > "$OUT/listening.txt"
+          sleep 20; (ss -ltnup || true) > "$OUT/listening.txt"
+          # A workload so blocks carry guarantees, assurances and accumulation: work items for the
+          # Bootstrap service (0) and a transfer, spread over the run.
+          jamt="../pj/$(grep -E '(^|/)jamt$' "$OUT/executables.txt" | head -1)"
+          ( for i in $(seq 1 "$WORK_ITEMS"); do
+              echo "== item $i"; timeout 120 "$jamt" --rpc "$RPC" item 0 "shadow-$i" 2>&1 || echo "item $i: exit $?"
+              [ "$i" = 2 ] && { echo "== transfer"; timeout 120 "$jamt" --rpc "$RPC" transfer 0 1 2>&1 || echo "transfer: exit $?"; }
+              sleep 12
+            done ) > "$OUT/workload.log" 2>&1 &
           python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
             --timeout 2400 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
+          [ "${PIPESTATUS[0]}" = 0 ] || exit 1
+          # The blocks themselves, over JAM-NP (CE 128 block requests), while the testnet still runs.
+          python3 ../scripts/jamnp_blocks.py --peer "$PEER" --genesis "$OUT/dump/genesis.bin" \
+            --chain "$OUT/chain.json" --out "$OUT/dump" 2>&1 | tee "$OUT/jamnp.log"
           exit "${PIPESTATUS[0]}"
+      - name: Shadow the chain (scripts/shadow.py dump)
+        run: |
+          set +e
+          python3 scripts/shadow.py dump "$OUT/dump" --continue --known scripts/shadow-known.txt \
+            --out "$OUT/shadow" --target-log "$OUT/shadow-target.log" > "$OUT/shadow.log" 2>&1
+          # Results stay in the artifact (shadow.log), not in the job log.
+          echo "exit $?" >> "$OUT/shadow.log"
       - name: Collect what the testnet wrote
         if: always()
         run: |
