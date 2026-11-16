@@ -118,7 +118,12 @@ workflow tries every node the testnet log names. For each block in `chain.json` 
 block request (hash, descending, 1 block) and checks the header hash and parent link. It writes
 `dump/NNNNNNNN.block` and `.root` (the JIP-2 root). While the chain runs, a workload submits
 `work_items` work items to the Bootstrap service (`jamt item 0`) and one transfer, so blocks carry
-guarantees, assurances and accumulation (`workload.log`). Finally the job runs
+guarantees, assurances and accumulation (`workload.log`, `scripts/polkajam_workload.sh`). With
+the input `service: true` the workload also creates `shadow-probe` (`tools/service/build.py`, a
+service assembled in this repo with `tools/pvm-gen/asm.py`) and sends each work item to it as
+well. Its accumulate keeps a counter in storage, writes, overwrites and deletes four keys, and
+steps a 64-octet preimage through solicit, provide and forget. After each item the log records the
+service's storage keys, preimage request and preimage, which shows which state paths ran. Finally the job runs
 `scripts/shadow.py dump` on `dump/` and writes `shadow.log` plus mismatch states (`shadow/`) into
 the artifact; the job log carries no results.
 
