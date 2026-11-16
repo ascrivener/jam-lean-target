@@ -105,5 +105,10 @@ JIP-2 has no method that returns blocks or full states (`bestBlock`, `parent` an
 are the chain methods), so `chain.json` gives roots without blocks. The v0.8.0 command-line tools
 have no block or state export either (`polkajam`: gen-spec, dump-spec, gen-keys, list-keys,
 benchmark, benchmark-gas, run; `jamt inspect`: slot, service, storage, preimage, request). A
-`dump` feed therefore takes its genesis from the chain spec. Its blocks must come from the
-telemetry, if JIP-3 carries them, or from a JAM-NP block request to a node.
+`dump` feed therefore takes its genesis from the chain spec. JIP-3 telemetry gives block
+outlines only (size, hash, extrinsic counts), not block contents. So the blocks would have to come
+from a JAM-NP block request (CE 128) to one of the testnet's nodes; no such client exists here yet.
+
+Two quirks of the dev testnet: slots are wall-clock, so the first block after genesis (slot 0)
+has the current slot number, and `--blocks` counts blocks from there. JIP-2 hashes arrive
+base64-encoded (`chain.json` stores hex).
