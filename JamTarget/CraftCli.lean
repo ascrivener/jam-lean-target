@@ -14,6 +14,9 @@ own session handler (jam-lean's Υ). It writes the session in the minifuzz forma
   `jam-lean-target session DIR` and `scripts/drive.py DIR` compare any target against the model;
 * `signatures.txt`: every signature of every block (`ed KEY MSG SIG` / `bs KEY CTX MSG SIG`), for
   `JamCryptoTest/generator verify` (ed25519-dalek and ark-vrf);
+* `trace/genesis.bin` = ℰ(genesis header, initial state) and `trace/NNNNNNNN.bin`: each imported block as a fuzz-reports trace step
+  ℰ(pre-state, block, post-state), each state ℰ(root, ↕[(key, ↕value)]), for
+  `jam-lean-target trace DIR`;
 * `expected_state.bin`: the model's answer to GetState for the last block (a State message), and
   `last_header_hash.txt` that block's header hash (hex).
 
@@ -88,6 +91,8 @@ def craftSession (s0 : Session) (genesis : Header) (σ0 : State) (specs : List B
   let mut log := log1
   let mut blocks := []
   let mut n := 2
+  IO.FS.createDirAll (out / "trace")
+  writeBin (out / "trace" / "genesis.bin") (genesis.encode ++ encodeStateR σ)
   for spec in specs do
     let b ← match craftBlock p s.crypto keys parent σ spec with
       | .ok b => pure b
@@ -107,7 +112,10 @@ def craftSession (s0 : Session) (genesis : Header) (σ0 : State) (specs : List B
     | .stateRoot _ =>
       s := s'
       parent := b.header
-      σ := ((s'.entries.find? (·.hash == b.header.hash)).map (·.state)).getD σ
+      let σ' := ((s'.entries.find? (·.hash == b.header.hash)).map (·.state)).getD σ
+      writeBin (out / "trace" / s!"{pad8 (n - 1)}.bin") (encodeStateR σ ++ b.encode ++ encodeStateR σ')
+      σ := σ'
+
     | _ => pure ()
     n := n + 1
   IO.FS.writeFile (out / "signatures.txt") (String.intercalate "\n" sigLines ++ "\n")
