@@ -4,3 +4,6 @@ import JamCrypto.Ed25519
 import JamCrypto.Bandersnatch
 import JamCrypto.Crypto
 import JamCrypto.Ring
+import JamCrypto.Ed25519Sign
+import JamCrypto.BandersnatchSign
+import JamCrypto.DevKeys
