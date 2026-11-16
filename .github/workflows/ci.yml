@@ -37,3 +37,5 @@ jobs:
           lake build pvmrun && .lake/build/bin/pvmrun check vendor/jamtestvectors/pvm/programs
       - name: PVM edge-case vectors (vectors/pvm, GP v0.8.0 results)
         run: .lake/build/bin/pvmrun check vectors/pvm
+      - name: Refine vectors (vectors/refine, GP v0.8.0 work reports)
+        run: .lake/build/bin/jam-lean-target session vectors/refine/*/

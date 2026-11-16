@@ -63,5 +63,11 @@ segment roots are known.
 
 ## Vectors
 
-Tests and vectors (`vectors/refine/`, a generator, a CI check and `scripts/askrefine.py` for
-cross-checks against other targets) come in the next PR.
+`vectors/refine/0.8.0-tiny/` is one fuzzer session (minifuzz format, as
+`fuzz-proto/examples`): `PeerInfo` (features 7), `Initialize` with the 0.8.0 example genesis plus
+service 1000 holding five tiny programs as preimages, then one `RefineBundle` per case;
+`CASES.md` lists them, with each report's erasure root under GP #580's code for cross-checks.
+`lake exe refinegen BASE OUT [--prefixed]` regenerates it (BASE = jam-fuzzing
+`fuzz-proto/examples/0.8.0/no_forks/00000001_fuzzer_initialize.bin`); CI replays it with
+`jam-lean-target session`. `scripts/askrefine.py` asks Docker images what they advertise
+(`features`) and replays a session against them field by field (`replay`).
