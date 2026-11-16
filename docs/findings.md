@@ -39,7 +39,7 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
 
 ## F3. Reports beyond work-package limits: valid in GP 0.8.0, rejected after GP #563
 
-* **Input**: 16 published traces in jam-fuzzing `fuzz-reports/0.8.0/traces`, each one block on the
+* **Input**: 17 published traces in jam-fuzzing `fuzz-reports/0.8.0/traces`, each one block on the
   genesis state (slot 0 or 1) with a guarantee whose report has one field beyond a work-package
   limit; signatures valid (checked with the Lean Ed25519, ZIP-215). Smallest cases:
   * `1792928756_4797`: auth gas used r_g = 50,000,001 = 𝖦_I + 1, everything else ordinary;
@@ -49,7 +49,8 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
   * `1792930398_2612`: bundle length 2³² − 1 (> 𝖶_B).
   Others: 1792929525_1916, 1792929619_8124, 1792929743_9484, 1792929975_2030, 1792930230_1191,
   1792930259_5359, 1792931352_6642, 1792931620_4387, 1792931776_5866, 1792933026_3178,
-  1792933514_9961.
+  1792933514_9961, and `1792933529_8343` step 5 (a digest's import count 3,073 = 𝖶_M + 1, header
+  0x534bbc02…3ef1e; found by the shadow driver).
 * **polkajam** (trace: post-state = pre-state, i.e. rejected) and all eight GP 0.8.0 teams in the
   summary table agree with it: block invalid.
 * **Model**: imports the block.
