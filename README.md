@@ -11,6 +11,8 @@ lake build
 .lake/build/bin/jam-lean-target session DIR      # replay a recorded session (fuzz-proto/examples)
 .lake/build/bin/jam-lean-target trace DIR …      # replay fuzz-reports traces step by step
 .lake/build/bin/jam-lean-target craft SPEC OUTDIR      # craft valid blocks (JIP-5 dev keys) as a session
+.lake/build/bin/jam-lean-target probe KIND INIT OUTDIR  # block-level probes of F4/F6 (vectors/blocks)
+python3 scripts/askprobe.py OUTDIR IMAGE…                # send a crafted session to target images
 python3 scripts/bridge.py SOCK .lake/build/bin/jam-lean-target serve   # Unix-socket listener
 python3 scripts/drive.py DIR --sock SOCK         # drive any target with a recorded session
 ```

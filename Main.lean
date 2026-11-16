@@ -1,5 +1,5 @@
 import JamTarget.Session
-import JamTarget.CraftCli
+import JamTarget.Probe
 
 /-!
 # `jam-lean-target`
@@ -18,6 +18,8 @@ import JamTarget.CraftCli
 * `jam-lean-target craft SPEC OUTDIR` — craft valid blocks signed with the JIP-5 development keys
   from a text description and write them as a recorded session with the model's answers
   (`JamTarget.CraftCli`).
+* `jam-lean-target probe KIND INIT OUTDIR` — the block-level probe KIND (`control`, `f4`, `f6`,
+  see `JamTarget.Probe`) on the genesis of the `Initialize` message INIT, written as by `craft`.
 
 `JAM_FUZZ_SPEC` (`tiny` or `full`, default `tiny`) selects the parameters.
 -/
@@ -224,6 +226,22 @@ def main (args : List String) : IO UInt32 := do
       IO.println s!"block {hex hh}: {match r with | .stateRoot x => s!"root {hex x}" | .error e => s!"ERROR {e}" | _ => "?"}"
     IO.println s!"signatures valid (JamCrypto): {c.sigsOk}"
     return if c.sigsOk && c.steps.all (fun (_, r) => match r with | .stateRoot _ => true | _ => false) then 0 else 1
+  | ["probe", kind, init, out] =>
+    let p ← getParams
+    let (h, kvs) ← CraftCli.readInitialize p init
+    let σ ← CraftCli.decodeState p kvs
+    let (σ', specs) ← match Probe.build p σ h kind with
+      | .ok x => pure x
+      | .error e => IO.eprintln e; return 2
+    let c ← CraftCli.craftSession (← newSession p) h σ' specs out
+    for (hh, r) in c.steps do
+      IO.println s!"block {hex hh}: {match r with | .stateRoot x => s!"root {hex x}" | .error e => s!"ERROR {e}" | _ => "?"}"
+    IO.println s!"signatures valid (JamCrypto): {c.sigsOk}"
+    match c.post.serviceStats.get? Probe.probeService with
+    | some st => IO.println s!"π_S[{Probe.probeService}].accumulation (count, transfers, gas) = {st.accumulation}"
+    | none => IO.println s!"π_S[{Probe.probeService}]: none"
+    IO.println s!"service {Probe.probeService} last accumulation slot: {(c.post.accounts.get? Probe.probeService).map (·.lastAcc)}"
+    return 0
   | _ =>
-    IO.eprintln "usage: jam-lean-target [serve | session DIR … | trace DIR … | craft SPEC OUTDIR]"
+    IO.eprintln "usage: jam-lean-target [serve | session DIR … | trace DIR … | craft SPEC OUTDIR | probe KIND INIT OUTDIR]"
     return 2
