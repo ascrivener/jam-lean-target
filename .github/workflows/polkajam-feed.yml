@@ -23,6 +23,9 @@ on:
       work_items:
         description: work items to submit to the Bootstrap service (jamt item) while the chain runs
         default: '10'
+      service:
+        description: also create the shadow-probe service (tools/service) and send each work item to it ("true"/"false")
+        default: 'false'
       peer:
         description: JAM-NP node to fetch blocks from, [peer-id@]host:port; "auto" tries every node the testnet log names
         default: auto
@@ -31,7 +34,7 @@ permissions:
 jobs:
   feed:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
       OUT: ${{ github.workspace }}/feed
@@ -40,6 +43,7 @@ jobs:
       RPC: ${{ inputs.rpc }}
       TESTNET_ARGS: ${{ inputs.testnet_args }}
       WORK_ITEMS: ${{ inputs.work_items }}
+      SERVICE: ${{ inputs.service }}
       PEER: ${{ inputs.peer }}
     steps:
       - uses: actions/checkout@v4
@@ -110,16 +114,14 @@ jobs:
           "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
           echo $! > ../testnet.pid
           sleep 20; (ss -ltnup || true) > "$OUT/listening.txt"
-          # A workload so blocks carry guarantees, assurances and accumulation: work items for the
-          # Bootstrap service (0) and a transfer, spread over the run.
-          jamt="../pj/$(grep -E '(^|/)jamt$' "$OUT/executables.txt" | head -1)"
-          ( for i in $(seq 1 "$WORK_ITEMS"); do
-              echo "== item $i"; timeout 120 "$jamt" --rpc "$RPC" item 0 "shadow-$i" 2>&1 || echo "item $i: exit $?"
-              [ "$i" = 2 ] && { echo "== transfer"; timeout 120 "$jamt" --rpc "$RPC" transfer 0 1 2>&1 || echo "transfer: exit $?"; }
-              sleep 12
-            done ) > "$OUT/workload.log" 2>&1 &
+          # A workload so blocks carry guarantees, assurances and accumulation (scripts/polkajam_workload.sh);
+          # with service=true also the shadow-probe service's storage and preimage paths.
+          jamt="$PWD/../pj/$(grep -E '(^|/)jamt$' "$OUT/executables.txt" | head -1)"
+          blob=
+          if [ "$SERVICE" = true ]; then python3 ../tools/service/build.py "$OUT/shadow-probe.jam"; blob="$OUT/shadow-probe.jam"; fi
+          ../scripts/polkajam_workload.sh "$jamt" "$RPC" "$WORK_ITEMS" $blob > "$OUT/workload.log" 2>&1 &
           python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
-            --timeout 2400 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
+            --timeout 6000 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
           [ "${PIPESTATUS[0]}" = 0 ] || exit 1
           # The blocks themselves, over JAM-NP (CE 128 block requests), while the testnet still runs.
           if [ "$PEER" = auto ]; then
