@@ -84,7 +84,7 @@ def ourInfo (features : Nat) : PeerInfo :=
 
 /-- The features the target supports. Ancestry is advertised: headers imported in the session
     are retained as 𝒜; `Initialize` ancestry items are kept but carry no header. -/
-def supportedFeatures : Nat := featureAncestry ||| featureFork
+def supportedFeatures : Nat := featureAncestry ||| featureFork ||| featureRefine
 
 def Session.noteRoots (s : Session) (σ : State) : Session :=
   let key := σ.pending.map ValidatorKey.bs
@@ -143,5 +143,13 @@ def Session.handle (s : Session) (r : Request) : Session × Option Response × L
     match s.entries.find? (·.hash == hh) with
     | some e => (s, some (.state e.state.serializeList), [s!"GetState {hex hh}"])
     | none => (s, none, [s!"GetState for an unknown header {hex hh}: closing"])
+  | .refineBundle q =>
+    -- the posterior state of the last block imported with success, or the Initialize state
+    match s.entries.head? with
+    | none => (s, some (.error "RefineBundle before Initialize"), ["RefineBundle before Initialize"])
+    | some e =>
+      match Refine.xi s.params e.state.accounts q.core q.lookup q.shards q.bundle with
+      | .ok r => (s, some (.workReport r), [s!"RefineBundle core {q.core}: report {hex (Refine.blake r.encode)}"])
+      | .error f => (s, some (.error f.message), [s!"RefineBundle core {q.core}: {f.message}"])
 
 end JamTarget

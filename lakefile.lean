@@ -37,3 +37,8 @@ lean_exe cryptotest where
     `lake exe pvmrun check vectors/pvm`, `lake exe pvmrun run FILE|DIR…`. -/
 lean_exe pvmrun where
   root := `PvmRun
+
+/-- Refine vectors: `lake exe refinegen BASE-INITIALIZE.bin OUT` writes fuzzer sessions with
+    `RefineBundle` (see vectors/refine). -/
+lean_exe refinegen where
+  root := `RefineGen
