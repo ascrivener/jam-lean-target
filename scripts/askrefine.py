@@ -4,7 +4,9 @@
   askrefine.py features IMAGE...          PeerInfo with features=7; print what each image advertises
   askrefine.py replay SESSION_DIR IMAGE... replay a minifuzz session (e.g. vectors/refine/...) and
                                            compare every response with the recorded one; for work
-                                           reports, print the fields that differ
+                                           reports, print the fields that differ; a report equal
+                                           to NNNNNNNN_post080_work_report.bin (GP #580/#583) is
+                                           reported as such
 Raw bytes only; the work-report field split follows GP v0.8.0 Appendix C.
 """
 import os, socket, struct, subprocess, sys, time
@@ -108,21 +110,8 @@ def features(imgs):
             try: t.close()
             except Exception: pass
 
-def roots580(sess):
-    """The GP #580 erasure roots of CASES.md (last column), by request index."""
-    out = {}
-    try:
-        for line in open(os.path.join(sess, 'CASES.md')):
-            cells = [c.strip() for c in line.split('|')]
-            if len(cells) > 6 and cells[1].isdigit() and cells[5].startswith('0x'):
-                out[cells[1]] = bytes.fromhex(cells[5][2:])
-    except FileNotFoundError:
-        pass
-    return out
-
 def replay(sess, imgs):
     files = sorted(f for f in os.listdir(sess) if f.endswith('.bin'))
-    r580 = roots580(sess)
     reqs = [f for f in files if '_fuzzer_' in f]
     for img in imgs:
         print(f'== {img}', flush=True)
@@ -139,6 +128,9 @@ def replay(sess, imgs):
                     print(f'{f}: {show_peer(got)}'); continue
                 if got == want:
                     print(f'{f}: same ({describe(got)})'); continue
+                post = os.path.join(sess, idx + '_post080_work_report.bin')
+                if os.path.exists(post) and got == open(post, 'rb').read():
+                    print(f'{f}: as the model after GP #580/#583 (model v0.8.0: {describe(want)})'); continue
                 if got[0] == 7 and want[0] == 7:
                     dump = os.environ.get('ASKREFINE_DUMP')
                     if dump:
@@ -150,8 +142,6 @@ def replay(sess, imgs):
                         print(f'{f}: work reports differ; target report does not parse ({len(got)} octets: {got[:200].hex()})')
                         continue
                     diff = [k for k in a if a[k] != b[k]]
-                    if diff == ['erasure_root'] and r580.get(idx) == a['erasure_root']:
-                        print(f'{f}: same except erasure_root, which is the GP #580 code\'s'); continue
                     print(f'{f}: work reports differ in {", ".join(diff)}')
                     for k in diff: print(f'    {k}: target {a[k].hex()[:96]}  model {b[k].hex()[:96]}')
                 elif got[0] == 255 and want[0] == 255:

@@ -20,8 +20,8 @@ encodings, the erasure code ℰ_C (`JAM.Erasure.encode`) and the well-balanced M
 
 ## Readings of v0.8.0 (see docs/refine.md)
 
-* **No exports.** With **s** = [] the paper's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] is ragged. We
-  take **s**♣ to be v items ℳ_B([]) = H_0, the completion GP #583 later wrote down.
+* **No exports.** With **s** = [] the paper's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] and the
+  erasure root are undefined. The target answers `Error` (GP #583 later defined it).
 * **Bad exports before errors.** v0.8.0 checks |**e**| ≠ w_e before r ∉ 𝔹, and Ψ_R returns no
   exports for ☇ and ∞, so an item with w_e > 0 that panics gives ⊚. GP #568 later swapped the
   order; we keep v0.8.0's.
@@ -223,10 +223,11 @@ def verify (b : Bundle) (l : OctetDict) :
   let lens := items.map (·.extrinsics.length)
   return (splitBy lens b.extrinsics, splitBy (items.map (·.importSegments.length)) b.imports)
 
-/-- Ξ(p, c, l, v) (eq. `computereport`) over the accounts **d**, after checking the bundle.
-    `weights` is the erasure code: GP v0.8.0's unless a test asks for another. -/
-def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle)
-    (weights : Array (Array Nat) := Erasure.encodeWeights v) : Except Failure WorkReport := do
+/-- Ξ(p, c, l, v) (eq. `computereport`) over the accounts **d**, after checking the bundle, with
+    the availability specifier `spec` (given h, **b**, **s**). -/
+def xiWith (spec : List UInt8 → List UInt8 → List (List UInt8) → Except Failure AvailabilitySpec)
+    (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle) :
+    Except Failure WorkReport := do
   let p := b.package
   if Erasure.originalShards v = 0 ∨ v > 1023 then throw (.bundle s!"erasure-shards {v} out of range")
   let (xbar, ibar) ← verify b l
@@ -238,12 +239,23 @@ def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b :
     | .err e => throw (Failure.noReport s!"Is-Authorized: {reprStr e}")
   let ds := countUp params d c p r.toList ibar xbar
   let s := (ds.map (·.2)).flatten
-  let h := blake p.encode
-  let spec ← match availabilityWith weights h (Bundle.encode b) s v with
+  let a ← spec (blake p.encode) (Bundle.encode b) s
+  return { spec := a, context := p.context, core := c, authorizerHash := packageAuthorizer p,
+           authTrace := r, segmentRootLookup := l, digests := ds.map (·.1), authGasUsed := gI }
+
+/-- A of GP v0.8.0 (§14.4.1), which has no value when nothing is exported: with **s** = [] the
+    paper's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] is undefined. (GP #583, after v0.8.0, later
+    defined it; the target stays with v0.8.0 and answers `Error`.) -/
+def spec080 (v : Nat) (h b : List UInt8) (s : List (List UInt8)) : Except Failure AvailabilitySpec :=
+  if s.isEmpty then throw (.noReport "nothing exported: undefined in GP v0.8.0 (see GP #583)")
+  else match availability h b s v with
     | some a => pure a
     | none => throw (.bundle "erasure coding failed")
-  return { spec, context := p.context, core := c, authorizerHash := packageAuthorizer p, authTrace := r,
-           segmentRootLookup := l, digests := ds.map (·.1), authGasUsed := gI }
+
+/-- Ξ(p, c, l, v) of GP v0.8.0 (eq. `computereport`) over the accounts **d**. -/
+def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle) :
+    Except Failure WorkReport :=
+  xiWith (spec080 v) params d c l v b
 
 /-! ## The request -/
 

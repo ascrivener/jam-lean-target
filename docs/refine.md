@@ -26,8 +26,9 @@ jam-lean has no Ξ, A, P or constant-depth Merkle functions; they are written he
 extrinsics, import-segments, justifications)`. The bundle part is read as the GP bundle encoding
 B (eq. `makebundle`): no length prefixes for the three sequences or for each extrinsic (the
 lengths come from the work-items), each justification ↕. The ASN's `SEQUENCE OF` would suggest
-prefixes, but its comment points to the GP encoding, and JavaJAM (the one 0.8.0 target that
-advertises `feature-refine`) reads it this way.
+prefixes, but its comment ("Parts of the GP work-package bundle, in the order of the GP bundle
+encoding. The GP encoding has no length prefix for the three sequences and for each extrinsic.")
+points to the GP encoding. This is an assumption until the protocol says which.
 
 `Error` when:
 * the bundle does not verify: the extrinsics are not the data of the items' (hash, length) pairs
@@ -35,6 +36,7 @@ advertises `feature-refine`) reads it this way.
   |path|, leaf H($leaf ⌢ segment)) to its segment root (r, or l[h] for h^⊞); the counts differ;
 * Ξ gives ∇: Is-Authorized fails or its trace exceeds 𝖶_R, or K(l) is not the set of imported
   package hashes;
+* nothing is exported (see below);
 * R(v) = 0 or v > 1023.
 
 Not checked (PR #214: block import does it): the authorizer pool, the refinement context, whether
@@ -48,9 +50,10 @@ segment roots are known.
   p((i + d' − d)~)), which is what the official erasure vectors use. Data shards agree, parity
   shards differ, so **every erasure root differs** between the two (tiny: d = 3, d' = 4).
   An implementation that follows #580 differs from us in `erasure_root` only: "follows GP #580".
-* **No exports (GP #583).** With **s** = [], v0.8.0's ᵀ[] has no size and ᵀ[**b**♣, **s**♣] is
-  ragged. We take **s**♣ = v items ℳ_B([]) = H_0, so each erasure-root leaf is **b**♣_i ⌢ H_0
-  — the completion GP #583 later wrote down. (Pending confirmation, see the PR.)
+* **No exports (GP #583).** With **s** = [], v0.8.0's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] and
+  the erasure root are undefined. The target answers `Error` ("nothing exported: undefined in GP
+  v0.8.0 (see GP #583)") for a package whose items export nothing (zero segments that replace a
+  failed item's exports count as exports). GP #583 later took **s**♣ to be v zero hashes.
 * **Bad exports before errors (GP #568).** v0.8.0 checks |**e**| ≠ w_e before r ∉ 𝔹, and Ψ_R
   returns no exports for ☇ and ∞, so an item with w_e > 0 that panics or runs out of gas gives
   ⊚ (`BadExports`); after GP #568 it gives ☇ / ∞. Vectors `panic_with_exports`,

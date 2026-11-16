@@ -102,11 +102,14 @@ def cases (slot : Nat) : List Case :=
   let pl := "payload".toUTF8.toList
   let xt := "extrinsic data".toUTF8.toList
   let imp (k : Nat) := (exported[k]!, Refine.justPath 0 exported k)
-  [ { name := "halt", bundle := b [item progHalt pl] },
-    { name := "halt_core1", core := 1, bundle := b [item progHalt pl] },
-    { name := "panic", bundle := b [item progTrap pl] },
-    { name := "out_of_gas", bundle := b [item progLoop pl (gas := 1000)] },
-    { name := "two_items", bundle := b [item progHalt pl, item progTrap pl] },
+  -- GP v0.8.0 has no erasure root when nothing is exported, so most cases end with an item that
+  -- exports one segment
+  let ex := item progExport "exporter".toUTF8.toList (exports := 1)
+  [ { name := "halt", bundle := b [item progHalt pl, ex] },
+    { name := "halt_core1", core := 1, bundle := b [item progHalt pl, ex] },
+    { name := "panic", bundle := b [item progTrap pl, ex] },
+    { name := "out_of_gas", bundle := b [item progLoop pl (gas := 1000), ex] },
+    { name := "two_items", bundle := b [item progHalt pl, item progTrap pl, ex] },
     { name := "export", bundle := b [item progExport pl (exports := 1)] },
     { name := "export_two_items",
       bundle := b [item progExport pl (exports := 1), item progExport (pl ++ pl) (exports := 1)] },
@@ -117,20 +120,23 @@ def cases (slot : Nat) : List Case :=
     -- v0.8.0: ⊚ (|e| ≠ w_e is checked before r ∉ 𝔹); GP #568: ☇
     { name := "panic_with_exports", bundle := b [item progTrap pl (exports := 1)] },
     -- BAD: no preimage for the code hash
-    { name := "no_code", bundle := b [{ item progHalt pl with codeHash := h [1, 2, 3] }] },
+    { name := "no_code", bundle := b [{ item progHalt pl with codeHash := h [1, 2, 3] }, ex] },
     -- ⊖: the output (the arguments, which hold the payload) does not fit 𝖶_R
-    { name := "oversize", bundle := b [item progHalt (List.replicate Constants.Cmaxreportvarsize 0x55)] },
+    { name := "oversize", bundle := b [item progHalt (List.replicate Constants.Cmaxreportvarsize 0x55), ex] },
     { name := "oversize_second_item",
-      bundle := b [item progHalt (List.replicate 30000 1), item progHalt (List.replicate 20000 2)] },
+      bundle := b [item progHalt (List.replicate 30000 1), item progHalt (List.replicate 20000 2), ex] },
     { name := "extrinsic",
-      bundle := { b [item progHalt pl (xts := [xt, []])] with extrinsics := [xt, []] } },
+      bundle := { b [item progHalt pl (xts := [xt, []]), ex] with extrinsics := [xt, []] } },
     { name := "import_by_root",
-      bundle := { b [item progHalt pl (imports := [(.root exportedRoot, 1)])] with
+      bundle := { b [item progHalt pl (imports := [(.root exportedRoot, 1)]), ex] with
                   imports := [(imp 1).1], justifications := [(imp 1).2] } },
     { name := "import_by_package",
       lookup := Std.ExtTreeMap.ofList [(exportedPkg.toList, exportedRoot.toList)],
-      bundle := { b [item progHalt pl (imports := [(.package exportedPkg, 2), (.root exportedRoot, 0)])] with
+      bundle := { b [item progHalt pl (imports := [(.package exportedPkg, 2), (.root exportedRoot, 0)]), ex] with
                   imports := [(imp 2).1, (imp 0).1], justifications := [(imp 2).2, (imp 0).2] } },
+    -- nothing exported: no erasure root in GP v0.8.0 (GP #583 later defined one)
+    { name := "err_nothing_exported", bundle := b [item progHalt pl] },
+    { name := "err_nothing_exported_two_items", bundle := b [item progHalt pl, item progTrap pl] },
     -- errors
     { name := "err_auth_panics", bundle := b [item progHalt pl] progTrap },
     { name := "err_extrinsic_mismatch",
@@ -154,13 +160,21 @@ def weights580 (v : Nat) : Array (Array Nat) :=
   ((List.range d).map fun i => (Array.range d).map fun j => if i = j then 1 else 0).toArray ++
     parity.map (·.extract 0 d)
 
-/-- The other reading of PR #214's wire format (PyJAMaz's): the three sequences and each extrinsic
+/-- The other reading of PR #214's wire format: the three sequences and each extrinsic
     with the codec's length prefixes, as the ASN `SEQUENCE OF` / `ByteSequence` would give. For
     cross-checks only (`refinegen BASE OUT --prefixed`); the target reads the GP bundle encoding. -/
 def encodePrefixed (q : Refine.Request) : List UInt8 :=
   Codec.fixed 2 q.core ++ Codec.varHashDict q.lookup ++ Codec.fixed 2 q.shards ++
     q.bundle.package.encode ++ Codec.varSeq (fun x => Codec.nat x.length ++ x) q.bundle.extrinsics ++
     Codec.varSeq id q.bundle.imports ++ Codec.varSeq (Codec.varSeq id) q.bundle.justifications
+
+/-- A with the erasure code of GP #580 and, when nothing is exported, GP #583's **s**♣ (v zero
+    hashes): the report after those later GP changes, for comparison tooling only. -/
+def specPost080 (v : Nat) (h b : List UInt8) (s : List (List UInt8)) :
+    Except Refine.Failure AvailabilitySpec :=
+  match Refine.availabilityWith (weights580 v) h b s v with
+  | some a => pure a
+  | none => throw (.bundle "erasure coding failed")
 
 end RefineGen
 
@@ -195,10 +209,11 @@ def main (args : List String) : IO UInt32 := do
   writeBin (dir / "00000001_fuzzer_initialize.bin") initMsg
   writeBin (dir / "00000001_target_state_root.bin") ((r1.map Response.encode).getD [])
   let mut index : List String :=
-    ["Responses are GP v0.8.0's. The last column is the erasure root under GP #580's erasure code (not",
-     "v0.8.0's), for cross-checks only.", "",
-     "| # | case | response | summary | erasure root, GP #580 code |",
-     "|---|------|----------|---------|----|"]
+    ["Responses are GP v0.8.0's. `NNNNNNNN_post080_work_report.bin` (not a response) is the report",
+     "after GP #580 (erasure code) and GP #583 (erasure root when nothing is exported), for",
+     "comparison tooling only.", "",
+     "| # | case | response | summary |",
+     "|---|------|----------|---------|"]
   let mut n := 2
   for c in cases hdr.slot do
     let q : Refine.Request := { core := c.core, lookup := c.lookup, shards := c.shards, bundle := c.bundle }
@@ -222,10 +237,12 @@ def main (args : List String) : IO UInt32 := do
         s!"items: {String.intercalate ", " items}; bundle {w.spec.bundleLength} octets, {w.spec.segmentCount} exports"
       | some (.error m) => m
       | _ => ""
-    let er580 := match Refine.xi params (σ.accounts) c.core c.lookup c.shards c.bundle (weights580 c.shards) with
-      | .ok w => hex w.spec.erasureRoot.toList
-      | .error _ => ""
-    index := index ++ [s!"| {pad8 n} | {c.name} | {kind} | {summary} | {er580} |"]
+    -- the report after GP #580 / #583, for comparison tooling (not a response)
+    let post := Refine.xiWith (specPost080 c.shards) params σ.accounts c.core c.lookup c.shards c.bundle
+    if let .ok w := post then
+      if (some (Response.workReport w)).map Response.encode != r.map Response.encode then
+        writeBin (dir / s!"{pad8 n}_post080_work_report.bin") (7 :: w.encode)
+    index := index ++ [s!"| {pad8 n} | {c.name} | {kind} | {summary} |"]
     n := n + 1
   IO.FS.writeFile (dir / "CASES.md") (String.intercalate "\n" index ++ "\n")
   return 0
