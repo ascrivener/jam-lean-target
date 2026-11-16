@@ -93,7 +93,9 @@ behaves the same at block level is not yet tested.
 
 **Where they reach consensus** (GP v0.8.0):
 * Ψ_M (is-authorized, refine, accumulate): F4 — GP charges a block then ☇; refusing at load would
-  give u = 0. F6 — GP gives ∞ with all gas used, PolkaVM ☇ with one block. u enters π_S (state
+  give u = 0. F6 — GP gives ∞, PolkaVM ☇ with one block. On ∞ GP v0.8.0 §A.4 leaves ϱ unchanged when the
+  next block's cost exceeds it (ϱ* = ϱ), so u = g − the leftover, not all of g (99,998 of 100,000
+  in the block-level probe). u enters π_S (state
   root) for accumulate and the work digest (report hash) for refine; the result decides
   is-authorized. F5 is invisible at Ψ_M (fault ends as ☇ with the same u).
 * Inner PVM (refine's `machine`/`invoke`): F4 — `machine` returns HUH only if deblob = ∇, so GP
@@ -107,9 +109,20 @@ different page (F5). Vectors with the GP v0.8.0 results are in `vectors/pvm` (`m
 * F5: already known upstream as paritytech/polkavm#429 (opened 2026-10-15): the interpreter reports
   the upper page; the recompiler agrees with the GP.
 * F6: same root cause as paritytech/polkavm#447 (opened 2026-11-02): a jump-table entry pointing at
-  code offset 0 is dropped and the jump traps; with z = 0 every entry is 0. Next: check whether
-polkajam and the 0.8.0 implementations show these at block level (needs a service whose code
-exercises them).
+  code offset 0 is dropped and the jump traps; with z = 0 every entry is 0.
+
+**Block level** (2026-11-16, block crafter): genesis plus a service whose accumulate code is the
+probe blob, a report for it pending in ρ, then one crafted block (all signatures real) that makes
+it available and accumulates it with g = 100,000. Compared: state root and full GetState.
+* jamduna, javajam, pyjamaz, jam-lean-target: equal to the model on all probes (control, panic,
+  out-of-gas, F4, F6).
+* jamforge: equal on all but F6, where π_S records 23 gas (one block, then panic, as PolkaVM)
+  against the model's 99,998; only C(13) differs. **F6 shows at block level in jamforge.**
+* No implementation shows F4: all charge the block and panic (gas 2), as GP v0.8.0 says.
+* lasair: never ran the service in this setup, controls included (report preloaded in ρ via
+  `Initialize`); not F-related, not investigated further.
+* F5 lives only in refine's inner PVM, which block import does not run: not tested at block level.
+* polkajam not yet tested (binary not reachable from the sandbox; see the shadow-mode work).
 
 ## F0. jam-lean: signing context strings kept the GP's `$` sigil
 
