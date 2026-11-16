@@ -65,7 +65,7 @@ node's genesis root if known, and the blocks in import order. Each block comes w
 verdict, root and post-state where known (`Feed` and `Step` in the script).
 
 * **`session DIR`**: a recorded fuzzer session (jam-fuzzing `fuzz-proto/examples/<v>/<name>`). The
-  fuzzer's requests are the chain; the recorded target responses (polkajam's) give roots and
+  fuzzer's requests are the chain; the recorded target responses give roots and
   verdicts. No node states.
 * **`trace DIR`**: a fuzz-reports trace. `genesis.bin` = ℰ(header, state); `NNNNNNNN.bin` =
   ℰ(pre-state, block, post-state) with state = (root, key-values). The `NNNNNNNN.json` beside each
@@ -81,20 +81,3 @@ verdict, root and post-state where known (`Feed` and `Step` in the script).
   `steps()` interface, pulling blocks and roots from a node (JIP-2 RPC or a debug endpoint).
   No node could be run in this sandbox yet. Starting from a mid-chain snapshot also needs
   `docs/gaps.md` #2 closed when the snapshot holds storage.
-
-## Results on the recorded feeds (jam-fuzzing cddba17, jam-lean 208cc20)
-
-| feed | blocks imported | match | known | unexplained | skipped | ms/block |
-| --- | --- | --- | --- | --- | --- | --- |
-| session `0.8.0/no_forks` | 25 | 24 | 1 (F2, slot 25) | 0 | 75 descendants of F2 | ~750 |
-| session `0.8.0/forks` | 95 | 95 | 0 | 0 | 0 | ~490 |
-| dump made from `no_forks` (`.block` files only, roots from the next H_R) | 25 | 24 | 1 (F2) | 0 | 75 descendants of F2 | ~700 |
-| 89 traces `fuzz-reports/0.8.0/traces` | 50 | 33 | 17 (F3) | 0 | 18 parent not in trace; 52 traces with storage at genesis | ~280 |
-
-* `no_forks` slot 25 is F2 (GP #533, `grow_heap` out of gas). The session holds no node states,
-  so the driver cannot resync and the remaining 75 blocks go unchecked.
-* The 17 trace divergences are F3 (reports beyond work-package limits; the node follows GP #563).
-  These are the 16 traces of `docs/findings.md` plus `1792933529_8343` step 5, whose report has a
-  digest with 3,073 imports (𝖶_M + 1), the same field and value as `1792929672_3352`.
-
-Times were measured on a 4-core container with `--quiet`, block import only.
