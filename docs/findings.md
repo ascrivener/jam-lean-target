@@ -39,7 +39,7 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
 
 ## F3. Reports beyond work-package limits: valid in GP 0.8.0, rejected after GP #563
 
-* **Input**: 16 published traces in jam-fuzzing `fuzz-reports/0.8.0/traces`, each one block on the
+* **Input**: 17 published traces in jam-fuzzing `fuzz-reports/0.8.0/traces`, each one block on the
   genesis state (slot 0 or 1) with a guarantee whose report has one field beyond a work-package
   limit; signatures valid (checked with the Lean Ed25519, ZIP-215). Smallest cases:
   * `1792928756_4797`: auth gas used r_g = 50,000,001 = 𝖦_I + 1, everything else ordinary;
@@ -49,7 +49,8 @@ Each entry: minimised input, both outputs, GP v0.8.0 reference, verdict, status.
   * `1792930398_2612`: bundle length 2³² − 1 (> 𝖶_B).
   Others: 1792929525_1916, 1792929619_8124, 1792929743_9484, 1792929975_2030, 1792930230_1191,
   1792930259_5359, 1792931352_6642, 1792931620_4387, 1792931776_5866, 1792933026_3178,
-  1792933514_9961.
+  1792933514_9961, and `1792933529_8343` step 5 (a digest's import count 3,073 = 𝖶_M + 1, header
+  0x534bbc02…3ef1e; found by the shadow driver).
 * **polkajam** (trace: post-state = pre-state, i.e. rejected) and all eight GP 0.8.0 teams in the
   summary table agree with it: block invalid.
 * **Model**: imports the block.
@@ -114,13 +115,7 @@ different page (F5). Vectors with the GP v0.8.0 results are in `vectors/pvm` (`m
 **Block level** (2026-11-16, block crafter): genesis plus a service whose accumulate code is the
 probe blob, a report for it pending in ρ, then one crafted block (all signatures real) that makes
 it available and accumulates it with g = 100,000. Compared: state root and full GetState.
-* jamduna, javajam, pyjamaz, jam-lean-target: equal to the model on all probes (control, panic,
-  out-of-gas, F4, F6).
-* jamforge: equal on all but F6, where π_S records 23 gas (one block, then panic, as PolkaVM)
-  against the model's 99,998; only C(13) differs. **F6 shows at block level in jamforge.**
-* No implementation shows F4: all charge the block and panic (gas 2), as GP v0.8.0 says.
-* lasair: never ran the service in this setup, controls included (report preloaded in ρ via
-  `Initialize`); not F-related, not investigated further.
+* Results per implementation are not published here (Adam's decision, 2026-11-16).
 * F5 lives only in refine's inner PVM, which block import does not run: not tested at block level.
 * polkajam not yet tested (binary not reachable from the sandbox; see the shadow-mode work).
 

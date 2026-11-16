@@ -40,8 +40,8 @@ generators and vectors. jam-lean (ascrivener/jam-lean) is read-only for us; anot
 - F2, F3: the fuzzer/implementations follow GP #533 / #563 (post-0.8.0); not bugs. Adam posted
   jam-fuzzing#220 asking releases to pin a GP commit.
 - F4–F6: PolkaVM vs GP v0.8.0. F4 reported by Adam as paritytech/polkavm#455; F5 = polkavm#429;
-  F6 ~ polkavm#447. Block level (crafter, 2026-11-16): jamforge shows F6 (π_S gas 23 vs 99,998);
-  jamduna, javajam, pyjamaz match the model; nobody shows F4; lasair didn't run the service.
+  F6 ~ polkavm#447. Block-level results per implementation: not published
+  (Adam, 2026-11-16: don't disclose).
 - Speed: jam-lean #201/#204 (profile from here) made a 693 s session run in 16 s.
 
 ## In flight

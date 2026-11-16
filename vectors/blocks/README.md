@@ -32,23 +32,9 @@ core 0. The report becomes available and accumulates with g = 100,000. The gas u
 For ∞, GP v0.8.0 §A.4 leaves ϱ unchanged when a block's cost exceeds the gas left (ϱ* = ϱ), so u =
 g − (that remainder) rather than g.
 
-Implementations (0.8.0 images, `scripts/askprobe.py`, 2026-11-16; state root and GetState):
-
-| | control | panic | oog | f4 | f6 |
-| --- | --- | --- | --- | --- | --- |
-| jamduna | = | = | = | = | = |
-| javajam | = | = | = | = | = |
-| pyjamaz | = | = | = | = | = |
-| jamforge | = | = | = | = | **23** (π_S only) |
-| lasair | ✗ | ✗ | ✗ | ✗ | ✗ |
-| jam-lean-target (image) | = | = | = | = | = |
-
-lasair clears ρ and records the package in ξ as the model does, but runs no accumulation of the
-preloaded report in any probe, the control included (no π_S entry, a_a stays 0). That is a setup
-sensitivity, not F4/F6.
+`scripts/askprobe.py OUT IMAGE…` compares an implementation's answers with these.
 
 ## `craft_epoch`
 
 `tests/craft/epoch.txt`: four blocks (slots 1, 5, 12, 14) with empty-bit assurances. Slot 12
-carries an epoch mark and is sealed from the new γ_S. jamduna, javajam and pyjamaz give the same
-roots and GetState.
+carries an epoch mark and is sealed from the new γ_S.
