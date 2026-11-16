@@ -111,8 +111,10 @@ outlines only (size, hash, extrinsic counts), not block contents.
 So the workflow fetches the blocks over JAM-NP, as the testnet's nodes do among themselves.
 `scripts/jamnp_blocks.py` (Python, `aioquic`, installed in the job only) connects to a node
 (input `peer`, default the first validator at 127.0.0.1:40000). It uses QUIC with a self-signed
-Ed25519 certificate named by its peer ID ("e" + base32 of the key as a little-endian integer) and
-ALPN `jamnp-s/0/<first 4 genesis-hash octets>`. For each block in `chain.json` it sends a CE 128
+Ed25519 certificate named by its peer ID ("e" + base32 of the key as a little-endian integer). It
+offers ALPN `jamnp-s/<v>/<first 4 genesis-hash octets>` for v = 0, 1, 2 (and the full-hash forms);
+the v0.8.0 testnet negotiates `jamnp-s/1/…`. `--peer` takes several `[peer-id@]host:port`; the
+workflow tries every node the testnet log names. For each block in `chain.json` it sends a CE 128
 block request (hash, descending, 1 block) and checks the header hash and parent link. It writes
 `dump/NNNNNNNN.block` and `.root` (the JIP-2 root). While the chain runs, a workload submits
 `work_items` work items to the Bootstrap service (`jamt item 0`) and one transfer, so blocks carry
