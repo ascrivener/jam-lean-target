@@ -84,6 +84,9 @@ jobs:
             done
           done < "$OUT/executables.txt"
           grep -il -E 'export|dump|block|state' "$OUT"/help/*.txt | tee "$OUT/help-mentions-export.txt" || true
+          # Protocol identifiers compiled into the node (ALPN of JAM-NP).
+          pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)
+          (strings -n 6 "pj/$pj" | grep -E 'jamnp|jam-np|/builder' | sort -u | head -50 || true) > "$OUT/protocol-strings.txt"
       - name: Dump the dev chain spec (genesis)
         run: |
           pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)

@@ -88,6 +88,13 @@ def find_block(msgs, want, spec):
                 pass
     return None
 
+def alpns(ghash, given):
+    """ALPNs to offer: --alpn if given, else JAMNP-S's jamnp-s/0/<first 4 genesis-hash octets>
+    and its variants (full hash, other versions); the node picks the one it speaks."""
+    if given: return given
+    h8, h = ghash[:4].hex(), ghash.hex()
+    return [f'jamnp-s/{v}/{x}' for v in (0, 1, 2) for x in (h8, h)]
+
 async def fetch(a):
     gen = open(a.genesis, 'rb').read()
     ghash = blake2b(gen[:header_len(gen, a.spec)])
@@ -101,12 +108,13 @@ async def fetch(a):
     for peer in a.peer:
         sni, _, hp = peer.rpartition('@')
         host, port = hp.rsplit(':', 1)
-        cfg = QuicConfiguration(is_client=True, alpn_protocols=[f'jamnp-s/0/{ghash[:4].hex()}'],
+        cfg = QuicConfiguration(is_client=True, alpn_protocols=alpns(ghash, a.alpn),
                                 verify_mode=ssl.CERT_NONE, idle_timeout=60, server_name=sni or None)
         cfg.certificate, cfg.private_key = cert, key
-        print(f'connecting to {peer} as {pid}, ALPN {cfg.alpn_protocols[0]}', flush=True)
+        print(f'connecting to {peer} as {pid}, ALPN {" ".join(cfg.alpn_protocols)}', flush=True)
         try:
             async with connect(host, int(port), cfg) as conn:
+                print(f'connected, ALPN {conn._quic.tls.alpn_negotiated}', flush=True)
                 await fetch_chain(conn, a, chain, ghash)
             return
         except ConnectionError as e:
@@ -140,6 +148,7 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--spec', default='tiny')
     ap.add_argument('--timeout', type=float, default=30)
+    ap.add_argument('--alpn', nargs='+', help='ALPN protocol(s) to offer instead of the defaults')
     asyncio.run(fetch(ap.parse_args()))
 
 if __name__ == '__main__':
