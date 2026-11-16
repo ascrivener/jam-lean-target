@@ -93,9 +93,10 @@ extra `testnet_args`). It:
    (`release.txt`) and unpacks them;
 2. saves `--help` for every executable and its subcommands (`help/`), flagging pages that mention
    export, dump, block or state;
-3. dumps the dev chain spec (`polkajam --chain dev dump-spec`, `dev-spec.json`);
-4. runs `polkajam-testnet` (with `vm.unprivileged_userfaultfd=1`, which PolkaVM's Linux sandbox
-   needs) and sends its JIP-3 telemetry to `jam-telemetry-dumper` (`telemetry.log`). It records
+3. dumps the dev chain spec (`polkajam --chain dev dump-spec`, `dev-spec.json`) and writes the
+   dump feed's `dump/genesis.bin` from its genesis header and state (`scripts/spec_genesis.py`);
+4. runs `polkajam-testnet` (with `vm.unprivileged_userfaultfd=1` and
+   `kernel.apparmor_restrict_unprivileged_userns=0`, which PolkaVM's Linux sandbox needs) and sends its JIP-3 telemetry to `jam-telemetry-dumper` (`telemetry.log`). It records
    the best chain over JIP-2 with `scripts/polkajam_chain.py`: per block the slot, header hash and
    posterior state root (`chain.json`);
 5. uploads `feed/` as the artifact `polkajam-feed`, with the testnet log and the files it wrote.

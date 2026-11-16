@@ -69,18 +69,19 @@ jobs:
         run: |
           pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)
           (timeout 60 "pj/$pj" --chain dev dump-spec "$OUT/dev-spec.json" || true) 2>&1 | tee "$OUT/dump-spec.log"
-          ls -l "$OUT/dev-spec.json" || true
+          # genesis.bin for scripts/shadow.py's dump feed: E(genesis header, genesis key-values)
+          python3 scripts/spec_genesis.py "$OUT/dev-spec.json" "$OUT/dump/genesis.bin" || true
       - name: Run the testnet and record its chain over JIP-2
         run: |
-          # PolkaVM's Linux sandbox needs unprivileged userfaultfd.
-          sudo sysctl -w vm.unprivileged_userfaultfd=1
+          # PolkaVM's Linux sandbox needs unprivileged userfaultfd and user namespaces.
+          sudo sysctl -w vm.unprivileged_userfaultfd=1 kernel.apparmor_restrict_unprivileged_userns=0
           pip install -q websockets
           tn=$(grep -E '(^|/)polkajam-testnet$' "$OUT/executables.txt" | head -1)
           td=$(grep -E '(^|/)jam-telemetry-dumper$' "$OUT/executables.txt" | head -1)
           [ -n "$tn" ] || { echo "no polkajam-testnet in the release"; exit 1; }
           mkdir -p run && cd run
           if [ -n "$td" ]; then
-            "../pj/$td" --listen-ip 127.0.0.1 --port 19900 > "$OUT/telemetry.log" 2>&1 &
+            "../pj/$td" --port 19900 > "$OUT/telemetry.log" 2>&1 &
             echo $! > ../telemetry.pid; sleep 2
             TESTNET_ARGS="--telemetry 127.0.0.1:19900 $TESTNET_ARGS"
           fi
@@ -88,7 +89,7 @@ jobs:
           echo $! > ../testnet.pid
           sleep 20; (ss -ltnp || true) > "$OUT/listening.txt"
           python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
-            --timeout 2400 --out "$OUT/chain.json" | tee "$OUT/chain.log"
+            --timeout 2400 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
           exit "${PIPESTATUS[0]}"
       - name: Collect what the testnet wrote
         if: always()
