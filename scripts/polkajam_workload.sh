@@ -27,7 +27,7 @@ for i in $(seq 1 "$ITEMS"); do
     sleep 6
     echo "-- slot $(j inspect slot)"
     for k in n k0 k1 k2 k3; do echo "-- storage $k: $(j inspect storage --raw "$SVC" "$k" | head -c 200)"; done
-    echo "-- request: $(j inspect request "$SVC" "$PRE_HASH" 64 | head -c 300)"
+    echo "-- request: $(j inspect request "$SVC" "$PRE_HASH" | head -c 300)"
     echo "-- preimage: $(j inspect preimage "$SVC" "$PRE_HASH" | head -c 300)"
   fi
   sleep 6
