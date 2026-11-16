@@ -1,4 +1,5 @@
 import JAM.Block
+import JamTarget.Refine
 
 /-!
 # The fuzzer protocol v1 messages (jam-fuzzing `fuzz-proto/fuzz-v1.asn`)
@@ -15,6 +16,8 @@ little-endian integer (framing is in `JamTarget.IO`).
 | 3   | ImportBlock  | fuzzer → target |
 | 4   | GetState     | fuzzer → target |
 | 5   | State        | target → fuzzer |
+| 6   | RefineBundle | fuzzer → target |
+| 7   | WorkReport   | target → fuzzer |
 | 255 | Error        | target → fuzzer |
 
 `Block` and `Header` are GP v0.8.0's, decoded by jam-lean (`JAM.Block.decode`).
@@ -44,6 +47,8 @@ structure PeerInfo where
 def featureAncestry : Nat := 1
 /-- `feature-fork` (2^1). -/
 def featureFork : Nat := 2
+/-- `feature-refine` (2^2, jam-fuzzing PR #214). -/
+def featureRefine : Nat := 4
 
 /-- `AncestryItem ::= SEQUENCE { slot TimeSlot, header-hash HeaderHash }`. -/
 structure AncestryItem where
@@ -60,12 +65,14 @@ inductive Request where
   | initialize (header : Header) (state : RawState) (ancestry : List AncestryItem)
   | importBlock (b : Block)
   | getState (headerHash : List UInt8)
+  | refineBundle (q : Refine.Request)
 
 /-- The responses the target sends. -/
 inductive Response where
   | peerInfo (p : PeerInfo)
   | stateRoot (root : List UInt8)
   | state (kvs : RawState)
+  | workReport (r : WorkReport)
   | error (msg : String)
 
 def version : Decoder Version := do
@@ -97,6 +104,7 @@ def Request.decode (p : Params) : Decoder Request := do
     return .initialize h s a
   | 3 => return .importBlock (← Block.decode p)
   | 4 => return .getState (← bytes 32).toList
+  | 6 => return .refineBundle (← Refine.Request.decode)
   | t => fail s!"unexpected request tag {t}"
 
 open Codec in
@@ -117,6 +125,7 @@ def Response.encode : Response → List UInt8
   | .peerInfo p => 0 :: p.encode
   | .stateRoot r => 2 :: r
   | .state kvs => 5 :: encodeRawState kvs
+  | .workReport r => 7 :: r.encode
   | .error m => 255 :: Codec.var m.toUTF8
 
 end JamTarget
