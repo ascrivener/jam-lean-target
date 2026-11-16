@@ -116,13 +116,20 @@ offers ALPN `jamnp-s/<v>/<first 4 genesis-hash octets>` for v = 0, 1, 2 (and the
 the v0.8.0 testnet negotiates `jamnp-s/1/…`. `--peer` takes several `[peer-id@]host:port`; the
 workflow tries every node the testnet log names. For each block in `chain.json` it sends a CE 128
 block request (hash, descending, 1 block) and checks the header hash and parent link. It writes
-`dump/NNNNNNNN.block` and `.root` (the JIP-2 root). While the chain runs, a workload submits
+`dump/<slot>-<hash>.block` and `.root` (the JIP-2 root). Forks: from the start of the run,
+`scripts/jamnp_listen.py` holds a UP 0 (block announcement) stream to a node and fetches every
+announced block at once, side forks included (`side/`, `announced.jsonl`). At the end
+`polkajam_chain.py --roots-for side/` asks JIP-2 for their roots, and `jamnp_blocks.py --side`
+adds the blocks off the best chain to the dump. The driver imports them on their parents' states;
+a fork block whose parent was never announced is skipped as a gap. While the chain runs, a workload submits
 `work_items` work items to the Bootstrap service (`jamt item 0`) and one transfer, so blocks carry
 guarantees, assurances and accumulation (`workload.log`, `scripts/polkajam_workload.sh`). With
 the input `service: true` the workload also creates `shadow-probe` (`tools/service/build.py`, a
 service assembled in this repo with `tools/pvm-gen/asm.py`) and sends each work item to it as
 well. Its accumulate keeps a counter in storage, writes, overwrites and deletes four keys, and
-steps a 64-octet preimage through solicit, provide and forget. After each item the log records the
+steps two 64-octet preimages through solicit, provide and forget, including the forgets that
+delete (on `[]` and on an old `[x, y]`), and transfers to the Bootstrap service; the workload also
+transfers into the service. After each item the log records the
 service's storage keys, preimage request and preimage, which shows which state paths ran. Finally the job runs
 `scripts/shadow.py dump` on `dump/` and writes `shadow.log` plus mismatch states (`shadow/`) into
 the artifact; the job log carries no results.

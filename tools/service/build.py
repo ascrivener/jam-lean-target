@@ -11,14 +11,17 @@ at pc 5 (GP v0.8.0 Ψ_R, Ψ_A).
   1. reads the counter under storage key "n" (8 octets, absent = 0), increments it, writes it back;
   2. writes the counter under key "k" + (n mod 4): creates keys k0…k3, then overwrites them;
   3. deletes key "k" + ((n + 2) mod 4) (write with v_Z = 0; absent keys are a no-op);
-  4. steps a preimage P (64 octets, hash H in the read-only data) through its life cycle:
-     n mod 8 = 1: solicit(H, 64); 2: provide(self, P); 5: forget(H, 64).
-     Over successive cycles this gives requests [] → (provided) [t] → [t, t'] → [t, t', t''] →
-     forget of an old or young entry; provide on a non-empty request returns HUH.
+  4. by m = n mod 32 (two 64-octet preimages P1, P2, hashes in the read-only data):
+       P1: m = 1 solicit (request []), 2 forget (deletes []), 3 solicit, 4 provide ([t]),
+           5 forget ([t, t']), 21 forget (y now older than the expunge period: deletes the
+           request and the preimage);
+       P2: m = 9 solicit, 10 provide, 13 forget; over two cycles this gives [x, y] → solicit
+           [x, y, t] → provide HUH → forget of an old y [w, t];
+       m = 7: transfer 1000 to the Bootstrap service (0) with gas limit 10^6.
   It halts with ω_8 = 0 (no yield).
-Host calls (GP v0.8.0 numbering): read 4, write 5, solicit 24, forget 25, provide 27.
+Host calls (GP v0.8.0 numbering): read 4, write 5, transfer 21, solicit 24, forget 25, provide 27.
 
-  build.py OUT.jam      writes the blob and prints its length and the hash of P
+  build.py OUT.jam      writes the blob; prints its length and each preimage's hash and text
 """
 import hashlib, os, sys
 
@@ -26,12 +29,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from asm import I, enc_nat, le, program
 
 RO, RW = 0x10000, 0x30000          # standard program zones for |o| <= 2^16
-PRE = bytes(range(0x40, 0x80))      # P: 64 octets
-H = hashlib.blake2b(PRE, digest_size=32).digest()
-ro = b'n' + bytes(7) + H + PRE      # "n" @RO, H @RO+8, P @RO+40
+# 64 printable octets each (jamt's `inspect request` takes the preimage's text)
+P1, P2 = (f'shadow-probe preimage {i}: '.encode().ljust(64, b'.') for i in (1, 2))
+H1, H2 = (hashlib.blake2b(p, digest_size=32).digest() for p in (P1, P2))
+ro = b'n' + bytes(7) + H1 + H2 + P1 + P2    # "n" @RO, H1 @RO+8, H2 @RO+40, P1 @RO+72, P2 @RO+136
 rw = bytes(32)                      # counter @RW, key buffer "k?" @RW+16
+O_H1, O_H2, O_P1, O_P2 = RO + 8, RO + 40, RO + 72, RO + 136
 
-READ, WRITE, SOLICIT, FORGET, PROVIDE = 4, 5, 24, 25, 27
+READ, WRITE, TRANSFER, SOLICIT, FORGET, PROVIDE = 4, 5, 21, 24, 25, 27
 SELF = -1                           # 2^64 - 1: the service itself
 
 def li(r, v): return I('load_imm', r, v)
@@ -51,18 +56,23 @@ accumulate = (
     + host(WRITE, RO, 1, RW, 8)                                       # "n" := n + 1
     + key_digit(3, 0) + host(WRITE, RW + 16, 2, RW, 8)                # k(n mod 4) := n
     + key_digit(3, 2) + host(WRITE, RW + 16, 2, 0, 0)                 # delete k((n + 2) mod 4)
-    + [I('and_imm', 5, 3, 7),
-       I('branch_eq_imm', 5, 1, 'solicit'), I('branch_eq_imm', 5, 2, 'provide'),
-       I('branch_eq_imm', 5, 5, 'forget'), I('jump', 'done')]
+    + [I('and_imm', 5, 3, 31)]
 )
+# m = n mod 32 -> action
+ACTIONS = [
+    (1, host(SOLICIT, O_H1, 64)), (2, host(FORGET, O_H1, 64)), (3, host(SOLICIT, O_H1, 64)),
+    (4, host(PROVIDE, SELF, O_P1, 64)), (5, host(FORGET, O_H1, 64)), (21, host(FORGET, O_H1, 64)),
+    (9, host(SOLICIT, O_H2, 64)), (10, host(PROVIDE, SELF, O_P2, 64)), (13, host(FORGET, O_H2, 64)),
+    (7, host(TRANSFER, 0, 1000, 10 ** 6, RO)),
+]
+accumulate += [I('branch_eq_imm', 5, m, f'a{m}') for m, _ in ACTIONS] + [I('jump', 'done')]
 labels_at = {}
+tail = []
 def label(name, instrs):
     labels_at[name] = len(refine) + len(accumulate) + sum(len(x) for x in tail)
     tail.append(instrs)
-tail = []
-label('solicit', host(SOLICIT, RO + 8, len(PRE)) + [I('jump', 'done')])
-label('provide', host(PROVIDE, SELF, RO + 40, len(PRE)) + [I('jump', 'done')])
-label('forget', host(FORGET, RO + 8, len(PRE)) + [I('jump', 'done')])
+for m, code in ACTIONS:
+    label(f'a{m}', code + [I('jump', 'done')])
 label('done', [li(8, 0), I('jump_ind', 0, 0)])
 instrs = refine + accumulate + [i for t in tail for i in t]
 
@@ -72,10 +82,11 @@ def build():
     std = (le(len(ro), 3) + le(len(rw), 3) + le(0, 2) + le(4096, 3) + list(ro) + list(rw)
            + le(len(code), 4) + code)
     def s(x): return enc_nat(len(x)) + list(x.encode())
-    meta = [0] + s('shadow-probe') + s('0.1.0') + s('Apache-2.0') + [1] + s('jam-lean-target')
+    meta = [0] + s('shadow-probe') + s('0.2.0') + s('Apache-2.0') + [1] + s('jam-lean-target')
     return bytes(enc_nat(len(meta)) + meta + std)
 
 if __name__ == '__main__':
     b = build()
     open(sys.argv[1], 'wb').write(b)
-    print(f'{sys.argv[1]}: {len(b)} octets; preimage hash {H.hex()} length {len(PRE)}')
+    print(f'{sys.argv[1]}: {len(b)} octets')
+    for p, h in ((P1, H1), (P2, H2)): print(f'preimage {h.hex()} {p.decode()}')

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Fetch a chain's blocks from a JAM node over JAM-NP (JAMNP-S) and write scripts/shadow.py's dump
-feed: NNNNNNNN.block = E(block) and NNNNNNNN.root = its posterior state root.
+feed: NAME.block = E(block) and NAME.root = its posterior state root, NAME = slot-hash prefix
+(so a parent sorts before its children). With --side, fork blocks recorded by jamnp_listen.py
+are added too.
 
 The chain to fetch is chain.json from scripts/polkajam_chain.py (slot, header hash, state root per
 block, from genesis to the best block). For each block after genesis this sends a CE 128 block
@@ -95,16 +97,14 @@ def alpns(ghash, given):
     h8, h = ghash[:4].hex(), ghash.hex()
     return [f'jamnp-s/{v}/{x}' for v in (0, 1, 2) for x in (h8, h)]
 
-async def fetch(a):
-    gen = open(a.genesis, 'rb').read()
-    ghash = blake2b(gen[:header_len(gen, a.spec)])
-    chain = json.load(open(a.chain))
-    if bytes.fromhex(chain[0]['header_hash']) != ghash:
-        sys.exit(f'chain.json starts at {chain[0]["header_hash"]}, not the genesis {ghash.hex()}')
+def genesis_hash(path, spec):
+    gen = open(path, 'rb').read()
+    return blake2b(gen[:header_len(gen, spec)])
+
+async def with_peer(a, ghash, work):
+    """Run `work(conn)` on the first of a.peer ("host:port" or "peer-id@host:port", the node's
+    own peer ID then being the TLS server name) that completes the handshake."""
     key, cert, pid = self_signed()
-    os.makedirs(a.out, exist_ok=True)
-    # Peers: "host:port" or "peer-id@host:port" (the node's own peer ID is then sent as the TLS
-    # server name). The first that completes the handshake is used.
     for peer in a.peer:
         sni, _, hp = peer.rpartition('@')
         host, port = hp.rsplit(':', 1)
@@ -115,29 +115,63 @@ async def fetch(a):
         try:
             async with connect(host, int(port), cfg) as conn:
                 print(f'connected, ALPN {conn._quic.tls.alpn_negotiated}', flush=True)
-                await fetch_chain(conn, a, chain, ghash)
-            return
+                return await work(conn)
         except ConnectionError as e:
             print(e, flush=True)
     sys.exit('no peer completed the handshake')
 
+async def request_block(conn, want, spec, timeout):
+    """CE 128 block request: the block whose header hashes to `want`, or None."""
+    reader, writer = await conn.create_stream()
+    req = want + bytes([1]) + struct.pack('<I', 1)
+    writer.write(bytes([128]) + struct.pack('<I', len(req)) + req); writer.write_eof()
+    data = await asyncio.wait_for(reader.read(), timeout)
+    return find_block(messages(data), want, spec)
+
+def name(slot, h):
+    """Dump file stem: slot first, so parents sort before children (forks included)."""
+    return f'{slot:010d}-{h.hex()[:16]}'
+
+async def fetch(a):
+    ghash = genesis_hash(a.genesis, a.spec)
+    chain = json.load(open(a.chain))
+    if bytes.fromhex(chain[0]['header_hash']) != ghash:
+        sys.exit(f'chain.json starts at {chain[0]["header_hash"]}, not the genesis {ghash.hex()}')
+    os.makedirs(a.out, exist_ok=True)
+    await with_peer(a, ghash, lambda conn: fetch_chain(conn, a, chain, ghash))
+    if a.side: merge_side(a, chain)
+
 async def fetch_chain(conn, a, chain, ghash):
     prev = ghash
-    for n, b in enumerate(chain[1:], 1):
+    for b in chain[1:]:
         want = bytes.fromhex(b['header_hash'])
-        reader, writer = await conn.create_stream()
-        req = want + bytes([1]) + struct.pack('<I', 1)
-        writer.write(bytes([128]) + struct.pack('<I', len(req)) + req); writer.write_eof()
-        data = await asyncio.wait_for(reader.read(), a.timeout)
-        blk = find_block(messages(data), want, a.spec)
+        blk = await request_block(conn, want, a.spec, a.timeout)
         if blk is None:
-            sys.exit(f'slot {b["slot"]}: no block hashing to {want.hex()} in {len(data)} response octets')
+            sys.exit(f'slot {b["slot"]}: no block hashing to {want.hex()}')
         if blk[:32] != prev:
             sys.exit(f'slot {b["slot"]}: parent {blk[:32].hex()} is not the previous block {prev.hex()}')
-        open(os.path.join(a.out, f'{n:08d}.block'), 'wb').write(blk)
-        open(os.path.join(a.out, f'{n:08d}.root'), 'wb').write(bytes.fromhex(b['state_root']))
+        stem = os.path.join(a.out, name(b['slot'], want))
+        open(stem + '.block', 'wb').write(blk)
+        open(stem + '.root', 'wb').write(bytes.fromhex(b['state_root']))
         prev = want
-    print(f'{len(chain) - 1} blocks -> {a.out}')
+    print(f'{len(chain) - 1} best-chain blocks -> {a.out}')
+
+def merge_side(a, chain):
+    """Add the blocks of --side (jamnp_listen.py's NAME.block, with NAME.root where JIP-2 gave
+    one) that are not on the best chain: the fork blocks."""
+    best = {c['header_hash'] for c in chain}
+    n = 0
+    for f in sorted(os.listdir(a.side)):
+        if not f.endswith('.block'): continue
+        blk = open(os.path.join(a.side, f), 'rb').read()
+        h = blake2b(blk[:header_len(blk, a.spec)])
+        if h.hex() in best: continue
+        stem = os.path.join(a.out, name(struct.unpack('<I', blk[96:100])[0], h))
+        open(stem + '.block', 'wb').write(blk)
+        r = os.path.join(a.side, f[:-6] + '.root')
+        if os.path.exists(r): open(stem + '.root', 'wb').write(open(r, 'rb').read())
+        n += 1
+    print(f'{n} fork blocks from {a.side} -> {a.out}')
 
 def main():
     ap = argparse.ArgumentParser()
@@ -149,6 +183,7 @@ def main():
     ap.add_argument('--spec', default='tiny')
     ap.add_argument('--timeout', type=float, default=30)
     ap.add_argument('--alpn', nargs='+', help='ALPN protocol(s) to offer instead of the defaults')
+    ap.add_argument('--side', help='directory of fork blocks from jamnp_listen.py to add')
     asyncio.run(fetch(ap.parse_args()))
 
 if __name__ == '__main__':
