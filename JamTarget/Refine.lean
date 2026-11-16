@@ -127,13 +127,13 @@ def Bundle.encode (b : Bundle) : List UInt8 :=
 def columns (v : Nat) (rows : List (List ByteArray)) : List (List (List UInt8)) :=
   (List.range v).map fun i => rows.map fun r => (r.getD i ByteArray.empty).toList
 
-/-- A(h, **b**, **s**, v) (§14.4.1, the availability specifier). `none` if R(v) = 0. -/
-def availability (h : List UInt8) (b : List UInt8) (s : List (List UInt8)) (v : Nat) :
-    Option AvailabilitySpec := do
+/-- A(h, **b**, **s**, v) (§14.4.1, the availability specifier) with the erasure-code weights `w`
+    from the d message words to the v code words. `none` if R(v) = 0. -/
+def availabilityWith (w : Array (Array Nat)) (h : List UInt8) (b : List UInt8)
+    (s : List (List UInt8)) (v : Nat) : Option AvailabilitySpec := do
   let d := Erasure.originalShards v
   if d = 0 then none
   let z := 2 * d
-  let w := Erasure.encodeWeights v
   let bChunks ← Erasure.encodeWith d w ⟨(zeroPad z b).toArray⟩
   let bClub := bChunks.map fun c => (blakeBA c).toList
   let segRows ← (s ++ pagedProofs s).mapM fun x => Erasure.encodeWith d w ⟨x.toArray⟩
@@ -141,6 +141,11 @@ def availability (h : List UInt8) (b : List UInt8) (s : List (List UInt8)) (v : 
   let er := Merkle.root blakeBA ((bClub.zip sClub).map fun (x, y) => x ++ y)
   return { packageHash := ⟨h.toArray⟩, bundleLength := b.length, erasureRoot := ⟨er.toArray⟩,
            erasureShards := v, segmentRoot := ⟨(constRoot s).toArray⟩, segmentCount := s.length }
+
+/-- A(h, **b**, **s**, v) with GP v0.8.0's erasure code ℰ_C (jam-lean `Erasure.encodeWeights`). -/
+def availability (h : List UInt8) (b : List UInt8) (s : List (List UInt8)) (v : Nat) :
+    Option AvailabilitySpec :=
+  availabilityWith (Erasure.encodeWeights v) h b s v
 
 /-! ## Ξ (eq. `computereport`) -/
 
@@ -218,9 +223,10 @@ def verify (b : Bundle) (l : OctetDict) :
   let lens := items.map (·.extrinsics.length)
   return (splitBy lens b.extrinsics, splitBy (items.map (·.importSegments.length)) b.imports)
 
-/-- Ξ(p, c, l, v) (eq. `computereport`) over the accounts **d**, after checking the bundle. -/
-def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle) :
-    Except Failure WorkReport := do
+/-- Ξ(p, c, l, v) (eq. `computereport`) over the accounts **d**, after checking the bundle.
+    `weights` is the erasure code: GP v0.8.0's unless a test asks for another. -/
+def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle)
+    (weights : Array (Array Nat) := Erasure.encodeWeights v) : Except Failure WorkReport := do
   let p := b.package
   if Erasure.originalShards v = 0 ∨ v > 1023 then throw (.bundle s!"erasure-shards {v} out of range")
   let (xbar, ibar) ← verify b l
@@ -233,7 +239,7 @@ def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b :
   let ds := countUp params d c p r.toList ibar xbar
   let s := (ds.map (·.2)).flatten
   let h := blake p.encode
-  let spec ← match availability h (Bundle.encode b) s v with
+  let spec ← match availabilityWith weights h (Bundle.encode b) s v with
     | some a => pure a
     | none => throw (.bundle "erasure coding failed")
   return { spec, context := p.context, core := c, authorizerHash := packageAuthorizer p, authTrace := r,
@@ -241,8 +247,10 @@ def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b :
 
 /-! ## The request -/
 
-/-- `RefineBundle`: the arguments c, l, v of Ξ and the bundle parts (jam-fuzzing PR #214). The
-    three sequences and each extrinsic carry the codec's length prefixes on the wire. -/
+/-- `RefineBundle`: the arguments c, l, v of Ξ and the bundle (jam-fuzzing PR #214). The bundle is
+    the GP bundle encoding B (eq. `makebundle`): ℰ(p), then the extrinsic data, the import
+    segments and the ↕ justifications, with no other length prefixes; the lengths come from the
+    work-items. -/
 structure Request where
   core : Nat
   lookup : OctetDict
@@ -255,15 +263,15 @@ def Request.decode : Decoder Request := do
   let lookup ← varHashDict
   let shards ← fixed 2
   let package ← WorkPackage.decode
-  let extrinsics ← varSeq (do return (← var).toList)
-  let imports ← varSeq (do return (← bytes Constants.Csegmentsize).toList)
-  let justifications ← varSeq (varSeq (do return (← bytes 32).toList))
+  let xs := package.items.flatMap (·.extrinsics)
+  let is := package.items.flatMap (·.importSegments)
+  let extrinsics ← xs.mapM fun (_, n) => do return (← bytes n).toList
+  let imports ← is.mapM fun _ => do return (← bytes Constants.Csegmentsize).toList
+  let justifications ← is.mapM fun _ => varSeq (do return (← bytes 32).toList)
   return { core, lookup, shards, bundle := { package, extrinsics, imports, justifications } }
 
 open Codec in
 def Request.encode (q : Request) : List UInt8 :=
-  fixed 2 q.core ++ varHashDict q.lookup ++ fixed 2 q.shards ++ q.bundle.package.encode ++
-    varSeq (fun x => nat x.length ++ x) q.bundle.extrinsics ++ varSeq id q.bundle.imports ++
-    varSeq (varSeq id) q.bundle.justifications
+  fixed 2 q.core ++ varHashDict q.lookup ++ fixed 2 q.shards ++ q.bundle.encode
 
 end JamTarget.Refine

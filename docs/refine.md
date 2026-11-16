@@ -23,10 +23,11 @@ jam-lean has no Ξ, A, P or constant-depth Merkle functions; they are written he
 ## The request
 
 `RefineBundle = (core-index U16, segment-root-lookup, erasure-shards U16, work-package,
-extrinsics, import-segments, justifications)`. On the wire the three sequences and each extrinsic
-carry the codec's length prefixes (the ASN `SEQUENCE OF` / `ByteSequence`); the target rebuilds
-the GP bundle encoding B (no prefixes but each justification's) for the bundle length and the
-erasure root.
+extrinsics, import-segments, justifications)`. The bundle part is read as the GP bundle encoding
+B (eq. `makebundle`): no length prefixes for the three sequences or for each extrinsic (the
+lengths come from the work-items), each justification ↕. The ASN's `SEQUENCE OF` would suggest
+prefixes, but its comment points to the GP encoding, and JavaJAM (the one 0.8.0 target that
+advertises `feature-refine`) reads it this way.
 
 `Error` when:
 * the bundle does not verify: the extrinsics are not the data of the items' (hash, length) pairs
