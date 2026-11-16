@@ -115,13 +115,7 @@ different page (F5). Vectors with the GP v0.8.0 results are in `vectors/pvm` (`m
 **Block level** (2026-11-16, block crafter): genesis plus a service whose accumulate code is the
 probe blob, a report for it pending in ρ, then one crafted block (all signatures real) that makes
 it available and accumulates it with g = 100,000. Compared: state root and full GetState.
-* jamduna, javajam, pyjamaz, jam-lean-target: equal to the model on all probes (control, panic,
-  out-of-gas, F4, F6).
-* jamforge: equal on all but F6, where π_S records 23 gas (one block, then panic, as PolkaVM)
-  against the model's 99,998; only C(13) differs. **F6 shows at block level in jamforge.**
-* No implementation shows F4: all charge the block and panic (gas 2), as GP v0.8.0 says.
-* lasair: never ran the service in this setup, controls included (report preloaded in ρ via
-  `Initialize`); not F-related, not investigated further.
+* Results per implementation are not published here (Adam's decision, 2026-11-16).
 * F5 lives only in refine's inner PVM, which block import does not run: not tested at block level.
 * polkajam not yet tested (binary not reachable from the sandbox; see the shadow-mode work).
 
