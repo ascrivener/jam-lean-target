@@ -1,9 +1,10 @@
 name: polkajam feed
 # Manual only (Actions → "polkajam feed" → Run workflow); normal CI does not run it.
 # Downloads a PolkaJam release from paritytech/polkajam-releases, records what its binaries can
-# export (--help of every executable), runs polkajam-testnet and records its best chain over JIP-2
-# (slot, header hash, posterior state root), and uploads everything as the artifact
-# `polkajam-feed`. See docs/shadow.md.
+# export (--help of every executable, the dev chain spec), runs polkajam-testnet with JIP-3
+# telemetry going to jam-telemetry-dumper, records its best chain over JIP-2 (slot, header hash,
+# posterior state root), and uploads everything as the artifact `polkajam-feed`. See
+# docs/shadow.md.
 on:
   workflow_dispatch:
     inputs:
@@ -64,21 +65,36 @@ jobs:
             done
           done < "$OUT/executables.txt"
           grep -il -E 'export|dump|block|state' "$OUT"/help/*.txt | tee "$OUT/help-mentions-export.txt" || true
+      - name: Dump the dev chain spec (genesis)
+        run: |
+          pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)
+          (timeout 60 "pj/$pj" --chain dev dump-spec "$OUT/dev-spec.json" || true) 2>&1 | tee "$OUT/dump-spec.log"
+          # genesis.bin for scripts/shadow.py's dump feed: E(genesis header, genesis key-values)
+          python3 scripts/spec_genesis.py "$OUT/dev-spec.json" "$OUT/dump/genesis.bin" || true
       - name: Run the testnet and record its chain over JIP-2
         run: |
+          # PolkaVM's Linux sandbox needs unprivileged userfaultfd and user namespaces.
+          sudo sysctl -w vm.unprivileged_userfaultfd=1 kernel.apparmor_restrict_unprivileged_userns=0
           pip install -q websockets
           tn=$(grep -E '(^|/)polkajam-testnet$' "$OUT/executables.txt" | head -1)
+          td=$(grep -E '(^|/)jam-telemetry-dumper$' "$OUT/executables.txt" | head -1)
           [ -n "$tn" ] || { echo "no polkajam-testnet in the release"; exit 1; }
           mkdir -p run && cd run
+          if [ -n "$td" ]; then
+            "../pj/$td" --port 19900 > "$OUT/telemetry.log" 2>&1 &
+            echo $! > ../telemetry.pid; sleep 2
+            TESTNET_ARGS="--telemetry 127.0.0.1:19900 $TESTNET_ARGS"
+          fi
           "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
           echo $! > ../testnet.pid
           sleep 20; (ss -ltnp || true) > "$OUT/listening.txt"
-          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" \
-            --timeout 2400 --out "$OUT/chain.json" | tee "$OUT/chain.log"
+          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
+            --timeout 2400 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
+          exit "${PIPESTATUS[0]}"
       - name: Collect what the testnet wrote
         if: always()
         run: |
-          kill "$(cat testnet.pid 2>/dev/null)" 2>/dev/null || true; sleep 3
+          kill "$(cat testnet.pid 2>/dev/null)" "$(cat telemetry.pid 2>/dev/null)" 2>/dev/null || true; sleep 3
           (find run -type f -printf '%s\t%p\n' 2>/dev/null | sort -k2 || true) > "$OUT/files.txt"
       - uses: actions/upload-artifact@v4
         if: always()

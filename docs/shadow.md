@@ -93,10 +93,22 @@ extra `testnet_args`). It:
    (`release.txt`) and unpacks them;
 2. saves `--help` for every executable and its subcommands (`help/`), flagging pages that mention
    export, dump, block or state;
-3. runs `polkajam-testnet` and records its best chain over JIP-2 with `scripts/polkajam_chain.py`:
-   per block the slot, header hash and posterior state root (`chain.json`);
-4. uploads `feed/` as the artifact `polkajam-feed`, with the testnet log and the files it wrote.
+3. dumps the dev chain spec (`polkajam --chain dev dump-spec`, `dev-spec.json`) and writes the
+   dump feed's `dump/genesis.bin` from its genesis header and state (`scripts/spec_genesis.py`);
+4. runs `polkajam-testnet` (with `vm.unprivileged_userfaultfd=1` and
+   `kernel.apparmor_restrict_unprivileged_userns=0`, which PolkaVM's Linux sandbox needs) and sends its JIP-3 telemetry to `jam-telemetry-dumper` (`telemetry.log`). It records
+   the best chain over JIP-2 with `scripts/polkajam_chain.py`: per block the slot, header hash and
+   posterior state root (`chain.json`);
+5. uploads `feed/` as the artifact `polkajam-feed`, with the testnet log and the files it wrote.
 
 JIP-2 has no method that returns blocks or full states (`bestBlock`, `parent` and `stateRoot`
-are the chain methods), so `chain.json` gives roots without blocks. A `dump` feed also needs
-the blocks, from an export command if the help pages show one. That conversion is the next step.
+are the chain methods), so `chain.json` gives roots without blocks. The v0.8.0 command-line tools
+have no block or state export either (`polkajam`: gen-spec, dump-spec, gen-keys, list-keys,
+benchmark, benchmark-gas, run; `jamt inspect`: slot, service, storage, preimage, request). A
+`dump` feed therefore takes its genesis from the chain spec. JIP-3 telemetry gives block
+outlines only (size, hash, extrinsic counts), not block contents. So the blocks would have to come
+from a JAM-NP block request (CE 128) to one of the testnet's nodes; no such client exists here yet.
+
+Two quirks of the dev testnet: slots are wall-clock, so the first block after genesis (slot 0)
+has the current slot number, and `--blocks` counts blocks from there. JIP-2 hashes arrive
+base64-encoded (`chain.json` stores hex).
