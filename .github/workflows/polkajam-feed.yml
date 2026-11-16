@@ -114,6 +114,16 @@ jobs:
           "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
           echo $! > ../testnet.pid
           sleep 20; (ss -ltnup || true) > "$OUT/listening.txt"
+          if [ "$PEER" = auto ]; then
+            # "This node is <peer-id>@<ip>:<port>" for every node in the testnet log,
+            # each with its peer ID as the TLS server name and without.
+            PEER=$(grep -o 'This node is [^ ]*' "$OUT/testnet.log" | awk '{print $4}' | \
+              while read -r p; do echo "$p ${p#*@}"; done | tr '\n' ' ')
+          fi
+          # Every announced block, forks included (JAM-NP UP 0), fetched as it is announced.
+          python3 ../scripts/jamnp_listen.py --peer $PEER --genesis "$OUT/dump/genesis.bin" \
+            --out "$OUT/side" > "$OUT/listen.log" 2>&1 &
+          echo $! > ../listen.pid
           # A workload so blocks carry guarantees, assurances and accumulation (scripts/polkajam_workload.sh);
           # with service=true also the shadow-probe service's storage and preimage paths.
           jamt="$PWD/../pj/$(grep -E '(^|/)jamt$' "$OUT/executables.txt" | head -1)"
@@ -123,15 +133,13 @@ jobs:
           python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
             --timeout 6000 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
           [ "${PIPESTATUS[0]}" = 0 ] || exit 1
-          # The blocks themselves, over JAM-NP (CE 128 block requests), while the testnet still runs.
-          if [ "$PEER" = auto ]; then
-            # "This node is <peer-id>@<ip>:<port>" for every node in the testnet log,
-            # each with its peer ID as the TLS server name and without.
-            PEER=$(grep -o 'This node is [^ ]*' "$OUT/testnet.log" | awk '{print $4}' | \
-              while read -r p; do echo "$p ${p#*@}"; done | tr '\n' ' ')
-          fi
+          # Stop the listener; the fork blocks' roots over JIP-2, while the testnet still runs.
+          sleep 10; kill "$(cat ../listen.pid)" 2>/dev/null || true
+          mkdir -p "$OUT/side"
+          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --roots-for "$OUT/side" 2>&1 | tee -a "$OUT/chain.log"
+          # The best chain's blocks over JAM-NP (CE 128), plus the fork blocks from the listener.
           python3 ../scripts/jamnp_blocks.py --peer $PEER --genesis "$OUT/dump/genesis.bin" \
-            --chain "$OUT/chain.json" --out "$OUT/dump" 2>&1 | tee "$OUT/jamnp.log"
+            --chain "$OUT/chain.json" --out "$OUT/dump" --side "$OUT/side" 2>&1 | tee "$OUT/jamnp.log"
           exit "${PIPESTATUS[0]}"
       - name: Shadow the chain (scripts/shadow.py dump)
         run: |

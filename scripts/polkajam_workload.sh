@@ -3,9 +3,9 @@
 #   polkajam_workload.sh JAMT RPC ITEMS [SERVICE_BLOB]
 # Submits ITEMS work items to the Bootstrap service (0) and one transfer, so blocks carry
 # guarantees, assurances and accumulation. With SERVICE_BLOB (tools/service/build.py), it first
-# creates that service, then sends each work item to it as well, and after each one records
-# what the chain holds for it (storage keys n, k0..k3; the preimage request and the preimage),
-# so the log shows which state paths ran.
+# creates that service, transfers 1000 to it, then sends each work item to it as well, and
+# after each one records what the chain holds for it (storage keys n, k0..k3; each preimage
+# request and preimage), so the log shows which state paths ran.
 set -u
 JAMT=$1; RPC=$2; ITEMS=$3; BLOB=${4:-}
 j() { timeout 120 "$JAMT" --rpc "$RPC" "$@" 2>&1; }
@@ -16,8 +16,9 @@ if [ -n "$BLOB" ]; then
   echo "$out"
   SVC=$(echo "$out" | tail -1 | tr -d '[:space:]')
   case "$SVC" in ''|*[!0-9a-fA-Fx]*) echo "no service id"; SVC= ;; esac
-  # The preimage the service solicits and provides (printed by build.py).
-  PRE_HASH=$(python3 "$(dirname "$0")/../tools/service/build.py" /dev/null | sed -E 's/.*hash ([0-9a-f]+) length ([0-9]+)/\1/')
+  # The preimages the service solicits and provides: "preimage <hash> <text>" from build.py.
+  PREIMAGES=$(python3 "$(dirname "$0")/../tools/service/build.py" /dev/null | grep '^preimage ')
+  if [ -n "$SVC" ]; then echo "== transfer 1000 to service $SVC"; j transfer "$SVC" 1000 || echo "exit $?"; fi
 fi
 for i in $(seq 1 "$ITEMS"); do
   echo "== item $i (bootstrap)"; j item 0 "shadow-$i" || echo "exit $?"
@@ -27,8 +28,10 @@ for i in $(seq 1 "$ITEMS"); do
     sleep 6
     echo "-- slot $(j inspect slot)"
     for k in n k0 k1 k2 k3; do echo "-- storage $k: $(j inspect storage --raw "$SVC" "$k" | head -c 200)"; done
-    echo "-- request: $(j inspect request "$SVC" "$PRE_HASH" | head -c 300)"
-    echo "-- preimage: $(j inspect preimage "$SVC" "$PRE_HASH" | head -c 300)"
+    while read -r _ h text; do
+      echo "-- request ${h:0:8}: $(j inspect request "$SVC" "$text" | head -c 300)"
+      echo "-- preimage ${h:0:8}: $(j inspect preimage "$SVC" "$h" | head -c 300)"
+    done <<< "$PREIMAGES"
   fi
   sleep 6
 done
