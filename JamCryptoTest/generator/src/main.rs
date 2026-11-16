@@ -1,5 +1,7 @@
 //! Generates the JamCrypto test vectors (see JamCryptoTest/vectors/README.md).
 //! Usage: gen RFC8032_VECTORS JAM_ED25519_JSON ARK_VRF_IETF_JSON OUT_DIR
+//!        gen signing RFC8032_VECTORS RFC8032_SECRETS ARK_VRF_IETF_JSON OUT_DIR
+//!        gen verify < LINES
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_vrf::suites::bandersnatch::{AffinePoint, IetfProof, Input, Output, Public, Secret};
 use curve25519_dalek::{edwards::CompressedEdwardsY, scalar::Scalar, EdwardsPoint, traits::IsIdentity};
@@ -65,8 +67,82 @@ fn bs_line(out: &mut String, tag: &str, key: &[u8], ctx: &[u8], msg: &[u8], sig:
 
 fn enc<T: CanonicalSerialize>(x: &T) -> Vec<u8> { let mut v = vec![]; x.serialize_compressed(&mut v).unwrap(); v }
 
+/// `gen signing RFC8032_VECTORS RFC8032_SECRETS ARK_VRF_IETF_JSON OUT_DIR`: signing vectors
+/// (JamCryptoTest/vectors/signing.txt), signatures by ed25519-dalek and ark-vrf 0.1.0.
+fn signing(a: &[String]) {
+    let mut out = String::new();
+    let rfc: Vec<Vec<String>> = std::fs::read_to_string(&a[2]).unwrap().lines()
+        .map(|l| l.split(' ').map(String::from).collect()).collect();
+    for l in std::fs::read_to_string(&a[3]).unwrap().lines() {
+        let f: Vec<&str> = l.split(' ').collect();
+        let v = rfc.iter().find(|v| v[0] == f[0]).unwrap();
+        let seed: [u8; 32] = unh(f[1]).try_into().unwrap();
+        let sk = ed25519_dalek::SigningKey::from_bytes(&seed);
+        use ed25519_dalek::Signer;
+        let msg = unh(&v[2]);
+        let sig = sk.sign(&msg).to_bytes().to_vec();
+        assert_eq!(sk.verifying_key().to_bytes().to_vec(), unh(&v[1]));
+        assert_eq!(sig, unh(&v[3]));
+        writeln!(out, "ed rfc8032-{} {} {} {} {}", f[0], f[1], h(&msg), h(&sig), v[1]).unwrap();
+    }
+    let mut rng = ChaCha20Rng::from_seed([9; 32]);
+    for i in 0..10 {
+        let mut seed = [0u8; 32]; rng.fill_bytes(&mut seed);
+        let sk = ed25519_dalek::SigningKey::from_bytes(&seed);
+        let mut msg = vec![0u8; (i * 41) % 300]; rng.fill_bytes(&mut msg);
+        use ed25519_dalek::Signer;
+        let sig = sk.sign(&msg).to_bytes().to_vec();
+        writeln!(out, "ed gen-{i} {} {} {} {}", h(&seed), h(&msg), h(&sig), h(&sk.verifying_key().to_bytes())).unwrap();
+    }
+    let ark: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&a[4]).unwrap()).unwrap();
+    for (n, v) in ark.as_array().unwrap().iter().enumerate() {
+        let g = |k: &str| unh(match v[k].as_str().unwrap() { "" => "-", s => s });
+        let sig = [g("gamma"), g("proof_c"), g("proof_s")].concat();
+        writeln!(out, "bssk ark-vrf-{} {} {} {} {} {}", n + 1, h(&g("sk")), h(&g("alpha")), h(&g("ad")), h(&sig), h(&g("pk"))).unwrap();
+    }
+    for i in 0..10 {
+        use ark_vrf::ietf::Prover;
+        let mut seed = vec![0u8; [32, 0, 1, 64][i % 4]]; rng.fill_bytes(&mut seed);
+        let sk = Secret::from_seed(&seed);
+        let mut ctx = vec![0u8; (i * 13) % 70]; rng.fill_bytes(&mut ctx);
+        let mut msg = vec![0u8; (i * 59) % 400]; rng.fill_bytes(&mut msg);
+        let input = Input::new(&ctx).unwrap();
+        let o = sk.output(input);
+        let sig = [enc(&o.0), enc(&sk.prove(input, o, &msg))].concat();
+        writeln!(out, "bsseed gen-{i} {} {} {} {} {}", h(&seed), h(&ctx), h(&msg), h(&sig), h(&enc(&sk.public().0))).unwrap();
+    }
+    std::fs::write(std::path::Path::new(&a[5]).join("signing.txt"), out).unwrap();
+}
+
+/// `gen verify < LINES`: checks signatures with ed25519-dalek (strict RFC 8032, `verify_strict`)
+/// and ark-vrf 0.1.0. Lines: `ed KEY MSG SIG` or `bs KEY CTX MSG SIG`; prints `ok`/`BAD` per line.
+fn verify() {
+    use std::io::BufRead;
+    let mut bad = 0;
+    for l in std::io::stdin().lock().lines() {
+        let l = l.unwrap();
+        let f: Vec<&str> = l.split(' ').collect();
+        let ok = match f[0] {
+            "ed" => {
+                let key: [u8; 32] = unh(f[1]).try_into().unwrap();
+                let sig: [u8; 64] = unh(f[3]).try_into().unwrap();
+                ed25519_dalek::VerifyingKey::from_bytes(&key).map(|k|
+                    k.verify_strict(&unh(f[2]), &ed25519_dalek::Signature::from_bytes(&sig)).is_ok()).unwrap_or(false)
+            }
+            "bs" => bs_verify(&unh(f[1]), &unh(f[2]), &unh(f[3]), &unh(f[4])),
+            _ => continue,
+        };
+        if !ok { bad += 1; }
+        println!("{} {}", if ok { "ok" } else { "BAD" }, l.chars().take(80).collect::<String>());
+    }
+    eprintln!("{bad} bad");
+    std::process::exit(if bad == 0 { 0 } else { 1 });
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().collect();
+    if a[1] == "signing" { return signing(&a); }
+    if a[1] == "verify" { return verify(); }
     let outdir = std::path::Path::new(&a[4]);
     let mut rng = ChaCha20Rng::from_seed([7; 32]);
 

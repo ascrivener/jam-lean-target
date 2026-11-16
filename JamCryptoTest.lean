@@ -3,7 +3,7 @@ import JamCrypto
 /-!
 # `lake exe cryptotest [DIR]`: the JamCrypto test vectors
 
-Runs every vector of `DIR/ed25519.txt` and `DIR/bandersnatch_ietf.txt` (default
+Runs every vector of `DIR/ed25519.txt`, `DIR/bandersnatch_ietf.txt` and `DIR/signing.txt` (default
 `JamCryptoTest/vectors`, see its README) and exits non-zero on a mismatch. Prints the time per
 verification.
 -/
@@ -82,6 +82,44 @@ def main (args : List String) : IO UInt32 := do
         check s!"bandersnatch {tag} Y = JAM.Sha512.vrfOutput"
           (Bandersnatch.vrfOutput sig == JAM.Sha512.vrfOutput sig) failures
     | _ => if line != "" then check s!"bandersnatch malformed line: {line}" false failures
+  -- Signing (signing.txt): our signature must equal ed25519-dalek's / ark-vrf's byte for byte, and
+  -- verify with our verifiers.
+  let mut sgN := 0
+  let mut sgT := 0
+  for line in (← IO.FS.lines s!"{dir}/signing.txt") do
+    match line.splitOn " " with
+    | ["ed", tag, seed, msg, sig, key] =>
+      let (seed, msg, sig, key) := (unhex seed, unhex msg, unhex sig, unhex key)
+      let (mine, t) ← timed fun _ => Ed25519.sign seed msg
+      sgN := sgN + 1; sgT := sgT + t
+      check s!"ed25519 sign {tag} key" (Ed25519.publicKey seed == key) failures
+      check s!"ed25519 sign {tag} = dalek" (mine == sig) failures
+      check s!"ed25519 sign {tag} verifies (all rules)"
+        (Ed25519.verify key msg mine && Ed25519.verifyWith Ed25519.rfc8032Cofactorless key msg mine) failures
+    | [kind, tag, secret, ctx, msg, sig, key] =>
+      if kind != "bssk" && kind != "bsseed" then check s!"signing malformed line: {line}" false failures
+      let x := if kind == "bssk" then leToNat (unhex secret) else Bandersnatch.secretOfSeed (unhex secret)
+      let (ctx, msg, sig, key) := (unhex ctx, unhex msg, unhex sig, unhex key)
+      let (mine, t) ← timed fun _ => Bandersnatch.ietfSign x ctx msg
+      sgN := sgN + 1; sgT := sgT + t
+      check s!"bandersnatch sign {tag} key" (Bandersnatch.publicKey x == key) failures
+      check s!"bandersnatch sign {tag} = ark-vrf" (mine == some sig) failures
+      check s!"bandersnatch sign {tag} verifies" (Bandersnatch.ietfVerify key ctx msg sig) failures
+      check s!"bandersnatch sign {tag} output" (Bandersnatch.ietfOutput x ctx == some (Bandersnatch.vrfOutput sig)) failures
+    | _ => if line != "" then check s!"signing malformed line: {line}" false failures
+  -- JIP-5 development keys = the genesis validators of the fuzzer's 0.8.0 sessions
+  -- (jam-fuzzing fuzz-proto/examples/0.8.0/no_forks, Initialize, epoch mark).
+  let genesis := [
+    ("ff71c6c03ff88adb5ed52c9681de1629a54e702fc14729f6b50d2f0a76f185b3", "4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace"),
+    ("dee6d555b82024f1ccf8a1e37e60fa60fd40b1958c4bb3006af78647950e1b91", "ad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933"),
+    ("9326edb21e5541717fde24ec085000b28709847b8aab1ac51f84e94b37ca1b66", "cab2b9ff25c2410fbe9b8a717abb298c716a03983c98ceb4def2087500b8e341"),
+    ("0746846d17469fb2f95ef365efcab9f4e22fa1feb53111c995376be8019981cc", "f30aa5444688b3cab47697b37d5cac5707bb3289e986b19b17db437206931a8d"),
+    ("151e5c8fe2b9d8a606966a79edd2f9e5db47e83947ce368ccba53bf6ba20a40b", "8b8c5d436f92ecf605421e873a99ec528761eb52a88a2f9a057b3b3003e6f32a"),
+    ("2105650944fcd101621fd5bb3124c9fd191d114b7ad936c1d79d734f9f21392e", "ab0084d01534b31c1dd87c81645fd762482a90027754041ca1b56133d0466c06")]
+  for (i, (bs, ed)) in (List.range 6).zip genesis do
+    let k := DevKeys.dev i
+    check s!"JIP-5 dev key {i}" (toHex k.bs == bs && toHex k.ed == ed) failures
+  IO.println s!"signing: {sgT / 1000 / max sgN 1} µs per signature"
   IO.println s!"ed25519: {edT / 1000 / max edN 1} µs per valid signature (ZIP 215)"
   IO.println s!"bandersnatch ietf: {bsT / 1000 / max bsN 1} µs per valid signature"
   let f ← failures.get

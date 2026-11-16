@@ -35,6 +35,24 @@ output of a valid signature (`-` otherwise).
 Expected verdicts: ark-vrf 0.1.0 verification after checked (`deserialize_compressed`) decoding of
 the key, the output point and the proof.
 
+## `signing.txt`
+
+Signing (`JamCrypto.Ed25519Sign`, `JamCrypto.BandersnatchSign`). Lean's signature must equal the
+reference's byte for byte (both are deterministic), the public key must match, and our verifiers
+must accept it.
+
+* `ed TAG seed msg sig key`: `rfc8032-*` are the RFC 8032 §7.1 vectors with their secret keys
+  (`generator/rfc8032_ed25519_secrets.txt`; the generator checks ed25519-dalek reproduces each
+  signature); `gen-*` are ed25519-dalek signatures with deterministic random seeds and messages.
+* `bssk TAG secret ctx msg sig key`: the 7 ark-vrf 0.1.0 IETF vectors (secret scalar
+  little-endian, ctx = alpha, msg = ad).
+* `bsseed TAG seed ctx msg sig key`: ark-vrf 0.1.0 `Secret::from_seed(seed)` and `prove`, seeds of
+  32, 0, 1 and 64 octets.
+
+`cryptotest` also checks the JIP-5 development keys (`JamCrypto.DevKeys`) against the six genesis
+validators of the fuzzer's 0.8.0 sessions. `gen verify` (below) checks arbitrary signatures with
+ed25519-dalek (`verify_strict`) and ark-vrf, e.g. those of a crafted block.
+
 ## Regenerating
 
 ```
@@ -42,6 +60,9 @@ git -C jam-fuzzing show c3c6fb23^:crypto/ed25519/vectors.json > jam_ed25519.json
 cd JamCryptoTest/generator
 cargo run --release -- rfc8032_ed25519.txt ../../jam_ed25519.json \
   ARK_VRF_0.1.0/data/vectors/bandersnatch_sha-512_ell2_ietf.json ../vectors
+cargo run --release -- signing rfc8032_ed25519.txt rfc8032_ed25519_secrets.txt \
+  ARK_VRF_0.1.0/data/vectors/bandersnatch_sha-512_ell2_ietf.json ../vectors
+cargo run --release -- verify < LINES     # `ed KEY MSG SIG` / `bs KEY CTX MSG SIG`, hex
 ```
 
 `rfc8032_ed25519.txt` holds the RFC 8032 §7.1 vectors (`name key msg sig`). The generator is not

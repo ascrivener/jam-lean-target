@@ -29,7 +29,7 @@ lean_lib JamCrypto
 lean_exe ringtest where
   root := `RingTest
 
-/-- Ed25519 and Bandersnatch IETF VRF vectors: `lake exe cryptotest [DIR]`. -/
+/-- Ed25519 and Bandersnatch IETF VRF vectors (verification and signing): `lake exe cryptotest [DIR]`. -/
 lean_exe cryptotest where
   root := `JamCryptoTest
 
