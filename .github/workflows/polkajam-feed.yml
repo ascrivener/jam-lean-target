@@ -1,0 +1,88 @@
+name: polkajam feed
+# Manual only (Actions → "polkajam feed" → Run workflow); normal CI does not run it.
+# Downloads a PolkaJam release from paritytech/polkajam-releases, records what its binaries can
+# export (--help of every executable), runs polkajam-testnet and records its best chain over JIP-2
+# (slot, header hash, posterior state root), and uploads everything as the artifact
+# `polkajam-feed`. See docs/shadow.md.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: polkajam-releases tag (e.g. v0.8.0 or a nightly tag)
+        default: v0.8.0
+      blocks:
+        description: run the testnet until this slot
+        default: '100'
+      rpc:
+        description: JIP-2 RPC endpoint of the testnet
+        default: ws://127.0.0.1:19800
+      testnet_args:
+        description: extra arguments for polkajam-testnet
+        default: ''
+permissions:
+  contents: read
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: ${{ github.workspace }}/feed
+      TAG: ${{ inputs.tag }}
+      BLOCKS: ${{ inputs.blocks }}
+      RPC: ${{ inputs.rpc }}
+      TESTNET_ARGS: ${{ inputs.testnet_args }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the release
+        run: |
+          mkdir -p "$OUT/help" pj
+          gh release view "$TAG" -R paritytech/polkajam-releases --json tagName,name,publishedAt,assets \
+            --jq '.tagName, .name, .publishedAt, (.assets[] | "\(.name)\t\(.size)")' | tee "$OUT/release.txt"
+          # Linux x86-64 assets only, when the names say so; otherwise all of them.
+          names=$(gh release view "$TAG" -R paritytech/polkajam-releases --json assets --jq '.assets[].name')
+          pick=$(echo "$names" | grep -iE 'linux' | grep -iE 'x86_64|amd64|x64' || true)
+          [ -n "$pick" ] || pick=$names
+          for n in $pick; do gh release download "$TAG" -R paritytech/polkajam-releases -p "$n" -D pj; done
+          cd pj
+          for f in *; do
+            case "$f" in
+              *.tar.gz|*.tgz|*.tar.xz|*.tar.zst|*.tar) tar xf "$f" ;;
+              *.zip) unzip -q "$f" ;;
+            esac
+          done
+          find . -type f -exec file {} + | grep -i 'ELF' | cut -d: -f1 | tee "$OUT/executables.txt"
+          xargs -a "$OUT/executables.txt" chmod +x
+      - name: Record what each binary offers
+        run: |
+          while read -r x; do
+            n=$(basename "$x")
+            (timeout 20 "pj/$x" --help || true) > "$OUT/help/$n.txt" 2>&1
+            # one level of subcommands (clap style: an indented word, then its description)
+            for sub in $(sed -n '/^Commands:/,/^$/p' "$OUT/help/$n.txt" | awk 'NR>1 && $1 != "help" {print $1}'); do
+              (timeout 20 "pj/$x" "$sub" --help || true) > "$OUT/help/$n.$sub.txt" 2>&1
+            done
+          done < "$OUT/executables.txt"
+          grep -il -E 'export|dump|block|state' "$OUT"/help/*.txt | tee "$OUT/help-mentions-export.txt" || true
+      - name: Run the testnet and record its chain over JIP-2
+        run: |
+          pip install -q websockets
+          tn=$(grep -E '(^|/)polkajam-testnet$' "$OUT/executables.txt" | head -1)
+          [ -n "$tn" ] || { echo "no polkajam-testnet in the release"; exit 1; }
+          mkdir -p run && cd run
+          "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
+          echo $! > ../testnet.pid
+          sleep 20; (ss -ltnp || true) > "$OUT/listening.txt"
+          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" \
+            --timeout 2400 --out "$OUT/chain.json" | tee "$OUT/chain.log"
+      - name: Collect what the testnet wrote
+        if: always()
+        run: |
+          kill "$(cat testnet.pid 2>/dev/null)" 2>/dev/null || true; sleep 3
+          (find run -type f -printf '%s\t%p\n' 2>/dev/null | sort -k2 || true) > "$OUT/files.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: polkajam-feed
+          path: feed
+          retention-days: 14
