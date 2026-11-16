@@ -40,17 +40,20 @@ generators and vectors. jam-lean (ascrivener/jam-lean) is read-only for us; anot
 - F2, F3: the fuzzer/implementations follow GP #533 / #563 (post-0.8.0); not bugs. Adam posted
   jam-fuzzing#220 asking releases to pin a GP commit.
 - F4–F6: PolkaVM vs GP v0.8.0. F4 reported by Adam as paritytech/polkavm#455; F5 = polkavm#429;
-  F6 ~ polkavm#447. Block-level impact on real nodes: being probed (crafter child).
+  F6 ~ polkavm#447. Block level (crafter, 2026-11-16): jamforge shows F6 (π_S gas 23 vs 99,998);
+  jamduna, javajam, pyjamaz match the model; nobody shows F4; lasair didn't run the service.
 - Speed: jam-lean #201/#204 (profile from here) made a 693 s session run in 16 s.
 
 ## In flight
 - Child "block crafter" (session_01FAPLsdan7X8ei7dbkrbKEw, branch claude/block-crafter): Lean
-  signing (PR #13), crafter exe emitting fuzzer messages, F4/F6 block-level probes against the
+  signing (PR #13, merged), crafter exe emitting fuzzer messages, F4/F6 block-level probes against the
   five 0.8.0 images (jamduna, javajam, jamforge, lasair, pyjamaz), block vectors under vectors/blocks.
 - Child "shadow" (session_01FAPLsZj552eofYwzgtSy1b, branch claude/shadow): driver that checks a
   node's blocks against the model; feed = a manual GitHub Actions workflow that downloads polkajam
   from polkajam-releases (this sandbox can't download GitHub release assets or run node binaries),
   runs polkajam-testnet and uploads blocks+roots as an artifact.
+- Child "refine" (session_01FAPLsatdp1wPizxANsrjPM, branch claude/refine): fuzzer RefineBundle →
+  WorkReport via jam-lean's Ξ; first reports the erasure-coding convention question (GP #580).
 - jam-lean: storage-key re-keying (stage 1 = jam-lean #200, stage 2 later) will let the target load
   mid-chain states and replay all 89 traces.
 - Forum post (Adam's, for the Fellowship Rank II application): Claude Doc "Checking JAM against an
