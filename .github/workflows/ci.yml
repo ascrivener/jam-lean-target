@@ -30,6 +30,8 @@ jobs:
         run: git clone -q https://github.com/jam-conformance/jam-fuzzing vendor/jam-fuzzing && git -C vendor/jam-fuzzing checkout -q cddba17d4a0798a7c794e003df0c21140e1fc09a
       - name: Smoke test (session replay; known gap from slot 12, see docs/gaps.md)
         run: .lake/build/bin/jam-lean-target session vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/no_forks | tail -1
+      - name: Block crafter (tests/craft/epoch.txt; replayed against the model's own answers)
+        run: .lake/build/bin/jam-lean-target craft tests/craft/epoch.txt /tmp/craft && .lake/build/bin/jam-lean-target session /tmp/craft
       - name: PVM runner on the official PVM vectors (koute/jamtestvectors pvm/programs, GP 0.8.0)
         run: |
           git clone -q --filter=blob:none --no-checkout https://github.com/koute/jamtestvectors vendor/jamtestvectors

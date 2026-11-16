@@ -1,0 +1,13 @@
+# Blocks on the fuzzer's 0.8.0 genesis: two in epoch 0, then slot 12 (tiny 𝖤 = 12: an epoch mark,
+# fallback sealing from the new γ_S), then slot 14; assurances with no bits set.
+init vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/no_forks/00000001_fuzzer_initialize.bin
+block
+assure 0 00
+assure 3 00
+block
+slot 5
+block
+slot 12
+assure 1 00
+block
+slot 14
