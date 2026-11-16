@@ -24,8 +24,8 @@ on:
         description: work items to submit to the Bootstrap service (jamt item) while the chain runs
         default: '10'
       peer:
-        description: JAM-NP address (UDP) of the node to fetch blocks from
-        default: 127.0.0.1:40000
+        description: JAM-NP node to fetch blocks from, [peer-id@]host:port; "auto" tries every node the testnet log names
+        default: auto
 permissions:
   contents: read
 jobs:
@@ -119,7 +119,13 @@ jobs:
             --timeout 2400 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
           [ "${PIPESTATUS[0]}" = 0 ] || exit 1
           # The blocks themselves, over JAM-NP (CE 128 block requests), while the testnet still runs.
-          python3 ../scripts/jamnp_blocks.py --peer "$PEER" --genesis "$OUT/dump/genesis.bin" \
+          if [ "$PEER" = auto ]; then
+            # "This node is <peer-id>@<ip>:<port>" for every node in the testnet log,
+            # each with its peer ID as the TLS server name and without.
+            PEER=$(grep -o 'This node is [^ ]*' "$OUT/testnet.log" | awk '{print $4}' | \
+              while read -r p; do echo "$p ${p#*@}"; done | tr '\n' ' ')
+          fi
+          python3 ../scripts/jamnp_blocks.py --peer $PEER --genesis "$OUT/dump/genesis.bin" \
             --chain "$OUT/chain.json" --out "$OUT/dump" 2>&1 | tee "$OUT/jamnp.log"
           exit "${PIPESTATUS[0]}"
       - name: Shadow the chain (scripts/shadow.py dump)

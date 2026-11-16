@@ -59,7 +59,12 @@ async def connect(host, port, cfg):
         local_addr=('0.0.0.0' if fam == socket.AF_INET else '::', 0), family=fam)
     try:
         proto.connect(addr, transmit=True)
-        await proto.wait_connected()
+        try:
+            await asyncio.wait_for(proto.wait_connected(), 15)
+        except (ConnectionError, asyncio.TimeoutError) as e:
+            ev = proto._quic._close_event
+            why = f'error {ev.error_code:#x} frame {ev.frame_type} "{ev.reason_phrase}"' if ev else type(e).__name__
+            raise ConnectionError(f'handshake with {host}:{port} failed: {why}') from None
         yield proto
     finally:
         proto.close(); await proto.wait_closed(); transport.close()
@@ -90,33 +95,46 @@ async def fetch(a):
     if bytes.fromhex(chain[0]['header_hash']) != ghash:
         sys.exit(f'chain.json starts at {chain[0]["header_hash"]}, not the genesis {ghash.hex()}')
     key, cert, pid = self_signed()
-    cfg = QuicConfiguration(is_client=True, alpn_protocols=[f'jamnp-s/0/{ghash[:4].hex()}'],
-                            verify_mode=ssl.CERT_NONE, idle_timeout=60)
-    cfg.certificate, cfg.private_key = cert, key
-    host, port = a.peer.rsplit(':', 1)
     os.makedirs(a.out, exist_ok=True)
-    print(f'connecting to {a.peer} as {pid}, ALPN {cfg.alpn_protocols[0]}', flush=True)
-    async with connect(host, int(port), cfg) as conn:
-        prev = ghash
-        for n, b in enumerate(chain[1:], 1):
-            want = bytes.fromhex(b['header_hash'])
-            reader, writer = await conn.create_stream()
-            req = want + bytes([1]) + struct.pack('<I', 1)
-            writer.write(bytes([128]) + struct.pack('<I', len(req)) + req); writer.write_eof()
-            data = await asyncio.wait_for(reader.read(), a.timeout)
-            blk = find_block(messages(data), want, a.spec)
-            if blk is None:
-                sys.exit(f'slot {b["slot"]}: no block hashing to {want.hex()} in {len(data)} response octets')
-            if blk[:32] != prev:
-                sys.exit(f'slot {b["slot"]}: parent {blk[:32].hex()} is not the previous block {prev.hex()}')
-            open(os.path.join(a.out, f'{n:08d}.block'), 'wb').write(blk)
-            open(os.path.join(a.out, f'{n:08d}.root'), 'wb').write(bytes.fromhex(b['state_root']))
-            prev = want
-        print(f'{len(chain) - 1} blocks -> {a.out}')
+    # Peers: "host:port" or "peer-id@host:port" (the node's own peer ID is then sent as the TLS
+    # server name). The first that completes the handshake is used.
+    for peer in a.peer:
+        sni, _, hp = peer.rpartition('@')
+        host, port = hp.rsplit(':', 1)
+        cfg = QuicConfiguration(is_client=True, alpn_protocols=[f'jamnp-s/0/{ghash[:4].hex()}'],
+                                verify_mode=ssl.CERT_NONE, idle_timeout=60, server_name=sni or None)
+        cfg.certificate, cfg.private_key = cert, key
+        print(f'connecting to {peer} as {pid}, ALPN {cfg.alpn_protocols[0]}', flush=True)
+        try:
+            async with connect(host, int(port), cfg) as conn:
+                await fetch_chain(conn, a, chain, ghash)
+            return
+        except ConnectionError as e:
+            print(e, flush=True)
+    sys.exit('no peer completed the handshake')
+
+async def fetch_chain(conn, a, chain, ghash):
+    prev = ghash
+    for n, b in enumerate(chain[1:], 1):
+        want = bytes.fromhex(b['header_hash'])
+        reader, writer = await conn.create_stream()
+        req = want + bytes([1]) + struct.pack('<I', 1)
+        writer.write(bytes([128]) + struct.pack('<I', len(req)) + req); writer.write_eof()
+        data = await asyncio.wait_for(reader.read(), a.timeout)
+        blk = find_block(messages(data), want, a.spec)
+        if blk is None:
+            sys.exit(f'slot {b["slot"]}: no block hashing to {want.hex()} in {len(data)} response octets')
+        if blk[:32] != prev:
+            sys.exit(f'slot {b["slot"]}: parent {blk[:32].hex()} is not the previous block {prev.hex()}')
+        open(os.path.join(a.out, f'{n:08d}.block'), 'wb').write(blk)
+        open(os.path.join(a.out, f'{n:08d}.root'), 'wb').write(bytes.fromhex(b['state_root']))
+        prev = want
+    print(f'{len(chain) - 1} blocks -> {a.out}')
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--peer', default='127.0.0.1:40000', help='host:port of a node (UDP)')
+    ap.add_argument('--peer', nargs='+', default=['127.0.0.1:40000'],
+                    help='nodes to try, [peer-id@]host:port (UDP)')
     ap.add_argument('--genesis', required=True, help='genesis.bin (E(header, key-values))')
     ap.add_argument('--chain', required=True, help='chain.json from polkajam_chain.py')
     ap.add_argument('--out', required=True)
