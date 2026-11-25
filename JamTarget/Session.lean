@@ -1,7 +1,7 @@
 import JAM.BlockImport
 import JAM.Sha512
 import JamTarget.Wire
-import JamTarget.StateDecode
+import JAM.StateDecode
 import JamCrypto.Ring
 import JamCrypto.Crypto
 
@@ -97,6 +97,10 @@ def hex (l : List UInt8) : String :=
   "0x" ++ String.join (l.map fun b =>
     (if b < 16 then "0" else "") ++ String.ofList (Nat.toDigits 16 b.toNat))
 
+/-- M of a raw state's key-values (GP §D.2), for comparison with M_σ of the decoded σ. -/
+def rawStateRoot (kvs : List (List UInt8 × List UInt8)) : List UInt8 :=
+  Trie.root (Std.ExtTreeMap.ofList kvs)
+
 /-- What the session logs (to stderr). -/
 abbrev Log := List String
 
@@ -109,14 +113,11 @@ def Session.handle (s : Session) (r : Request) : Session × Option Response × L
       [s!"peer {p.appName} fuzz v{p.fuzzVersion} features {p.features} jam {p.jamVersion.major}.{p.jamVersion.minor}.{p.jamVersion.patch}"])
   | .initialize h raw anc =>
     if s.initialized then (s, none, ["second Initialize in a session: closing"]) else
-    match StateDecode.decode s.params raw with
+    match JAM.StateDecode.decodeState s.params raw with
     | .error e => (s, none, [s!"Initialize: state cannot be decoded: {e}"])
-    | .ok d =>
-      let σ := d.state
-      let rawRoot := StateDecode.rawRoot raw
-      let log := (if d.unplaced.isEmpty then [] else
-          [s!"Initialize: {d.unplaced.length} entries cannot be placed in σ (storage keys are hashed in T); the model's state is incomplete"]) ++
-        (if σ.root == rawRoot then [] else [s!"Initialize: M_σ(σ) = {hex σ.root} ≠ M(raw) = {hex rawRoot}"])
+    | .ok σ =>
+      let rawRoot := rawStateRoot raw
+      let log := if σ.root == rawRoot then [] else [s!"Initialize: M_σ(σ) = {hex σ.root} ≠ M(raw) = {hex rawRoot}"]
       let e : Entry := { hash := h.hash, header := h, state := σ, ancestors := [h] }
       let s' := { s with initialized := true, entries := [e], ancestry := anc }.noteRoots σ
       -- M_σ(σ) of the model's σ: if the model lost entries it differs from M(raw), and the

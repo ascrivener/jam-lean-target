@@ -168,7 +168,7 @@ def replayTrace (dir : System.FilePath) : IO (Nat × Nat × List String) := do
   notes := notes ++ log
   match resp with
   | some (.stateRoot r) =>
-    let want := if hasGen then StateDecode.rawRoot initKvs else st1.pre.1
+    let want := if hasGen then rawStateRoot initKvs else st1.pre.1
     if r != want then notes := notes ++ [s!"Initialize: root {hex r}, expected {hex want}"]
   | _ => return (files.length, 0, notes ++ ["Initialize failed"])
   unless hasGen do

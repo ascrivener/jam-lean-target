@@ -134,10 +134,8 @@ def readInitialize (p : Params) (path : System.FilePath) : IO (Header × RawStat
   | .error e => throw (IO.userError s!"{path}: {e}")
 
 def decodeState (p : Params) (kvs : RawState) : IO State := do
-  match StateDecode.decode p kvs with
-  | .ok d =>
-    unless d.unplaced.isEmpty do throw (IO.userError "the state holds entries σ cannot hold")
-    return d.state
+  match JAM.StateDecode.decodeState p kvs with
+  | .ok σ => return σ
   | .error e => throw (IO.userError e)
 
 /-- Parse the text description. Returns the Initialize path and the block specs. -/

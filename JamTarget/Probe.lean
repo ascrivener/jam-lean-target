@@ -86,9 +86,9 @@ def build (p : Params) (σ : State) (genesis : Header) (kind : String) :
   let code := codeBlob pvm
   let h := hashL code
   let acct : ServiceAccount :=
-    { codeHash := h, balance := 10 ^ 12, minAccGas := 0, minMemoGas := 0,
-      preimages := (∅ : Std.ExtTreeMap (List UInt8) (List UInt8)).insert h code,
-      requests := (∅ : Std.ExtTreeMap (List UInt8 × Nat) (List Nat)).insert (h, code.length) [0] }
+    ({ codeHash := h, balance := 10 ^ 12, minAccGas := 0, minMemoGas := 0,
+       preimages := (∅ : Std.ExtTreeMap (List UInt8) (List UInt8)).insert h code } : ServiceAccount
+    ).requestSet h code.length [0]
   let r := probeReport σ genesis.hash h
   let g ← signGuarantee (devKeys σ.active.length) σ.active r 0 [0, 1, 2]
   let avail := (List.range p.coreCount).map fun c =>
