@@ -1,0 +1,44 @@
+{
+  "name": "low_straddle_panic_below",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 6, 54, 7, 255, 255, 0, 0, 33],
+  "steps": [
+    {
+      "map": {
+        "address": 65536,
+        "is-writable": false,
+        "length": 4096
+      }
+    },
+    {
+      "write": {
+        "address": 65536,
+        "contents": [1]
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [
+          {
+            "address": 65536,
+            "contents": [1]
+          }
+        ],
+        "gas": 9975
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 25,
+      "pc": 0
+    }
+  ]
+}

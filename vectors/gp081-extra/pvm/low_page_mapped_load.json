@@ -1,0 +1,44 @@
+{
+  "name": "low_page_mapped_load",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 5, 52, 7, 0, 16, 0, 17],
+  "steps": [
+    {
+      "map": {
+        "address": 4096,
+        "is-writable": false,
+        "length": 4096
+      }
+    },
+    {
+      "write": {
+        "address": 4096,
+        "contents": [42]
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 0, 0],
+        "pc": 4,
+        "memory": [
+          {
+            "address": 4096,
+            "contents": [42]
+          }
+        ],
+        "gas": 9975
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 25,
+      "pc": 0
+    }
+  ]
+}

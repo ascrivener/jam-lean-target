@@ -18,7 +18,7 @@ import JamTarget.Probe
 * `jam-lean-target craft SPEC OUTDIR` — craft valid blocks signed with the JIP-5 development keys
   from a text description and write them as a recorded session with the model's answers
   (`JamTarget.CraftCli`).
-* `jam-lean-target probe KIND INIT OUTDIR` — the block-level probe KIND (`control`, `f4`, `f6`,
+* `jam-lean-target probe KIND INIT OUTDIR` — the block-level probe KIND (`control`, `f4`, `f4b`, `f6`,
   see `JamTarget.Probe`) on the genesis of the `Initialize` message INIT, written as by `craft`.
 
 `JAM_FUZZ_SPEC` (`tiny` or `full`, default `tiny`) selects the parameters.
