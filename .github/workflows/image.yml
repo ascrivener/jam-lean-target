@@ -77,6 +77,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
+          # latest only from main: metadata-action's default (latest=auto) would also move it on a
+          # v* tag, so tagging an old commit (e.g. v0.8.0) would repoint latest at the old target.
+          flavor: latest=false
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/main' }}
