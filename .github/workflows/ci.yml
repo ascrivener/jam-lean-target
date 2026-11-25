@@ -28,7 +28,7 @@ jobs:
         run: lake build cryptotest && .lake/build/bin/cryptotest
       - name: Fetch the 0.8.0 fuzzer sessions
         run: git clone -q https://github.com/jam-conformance/jam-fuzzing vendor/jam-fuzzing && git -C vendor/jam-fuzzing checkout -q cddba17d4a0798a7c794e003df0c21140e1fc09a
-      - name: Smoke test (session replay; known gap from slot 12, see docs/gaps.md)
+      - name: Smoke test (session replay; known gap at slot 25, finding F2, see docs/gaps.md)
         run: .lake/build/bin/jam-lean-target session vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/no_forks | tail -1
       - name: Shadow driver on the recorded no_forks session (fails on a divergence not in scripts/shadow-known.txt)
         run: python3 scripts/shadow.py session vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/no_forks --quiet --continue --known scripts/shadow-known.txt --out /tmp/shadow

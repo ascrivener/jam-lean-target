@@ -59,7 +59,7 @@ jobs:
             n=$(ls "$1" | grep -c '_fuzzer_.*\.bin$')
             [ "$last" = "$n/$n as recorded" ] || { echo "::error::$1: $last (expected $n/$n)"; docker logs jlt; exit 1; }
           }
-          # (no_forks is not required: known gap from slot 12, docs/gaps.md, as in ci.yml)
+          # (no_forks is not required: known gap at slot 25, finding F2, docs/gaps.md, as in ci.yml)
           check vendor/jam-fuzzing/fuzz-proto/examples/0.8.0/forks
           check vectors/refine/0.8.0-tiny
           docker rm -f jlt
