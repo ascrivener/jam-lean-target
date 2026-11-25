@@ -21,6 +21,7 @@ which enters the state root.
 | `panic` | `trap` | charge the block, ☇ |
 | `oog` | `jump` to itself | ∞; ϱ' = the gas left when a block's cost exceeds it (§A.4), u = g − ϱ' |
 | `f4` | `fallthrough` as the last instruction | charge the block, ☇ (blob valid) |
+| `f4b` | `branch_eq_imm ω0, 0, 5` as the last instruction | charge the block (𝔟 = 1), ☇ (blob valid) |
 | `f6` | `load_imm ω1, 2; jump_ind ω1` with \|j\| = 1, z = 0 | j₀ = 0: jump to 0, which loops: ∞ as `oog` |
 -/
 
@@ -52,6 +53,9 @@ def blobOf : String → Option (List UInt8)
   -- 0–4: fallthrough; 5: jump 5 (a loop: ∞; the control of F6)
   | "oog" => some (pvmBlob 0 0 [1, 1, 1, 1, 1, 40] [0, 1, 2, 3, 4, 5])
   | "f4" => some (pvmBlob 0 0 [1, 1, 1, 1, 1, 1] [0, 1, 2, 3, 4, 5])
+  -- 0–4: fallthrough; 5: branch_eq_imm ω0, 0, 5 as the last instruction (F4, branch variant):
+  -- valid blob, the fall-through leg 7 = |c| ∉ ϖ, so ☇ after charging the block (𝔟 = 1: ζ_7 = 0)
+  | "f4b" => some (pvmBlob 0 0 [1, 1, 1, 1, 1, 81, 0] [0, 1, 2, 3, 4, 5])
   -- 0: jump 0 (a loop); 1–4: fallthrough; 5: load_imm ω1, 2; 8: jump_ind ω1, 0; |j| = 1, z = 0 (F6)
   | "f6" => some (pvmBlob 1 0 [40, 1, 1, 1, 1, 51, 1, 2, 50, 1] [0, 1, 2, 3, 4, 5, 8])
   | _ => none
@@ -82,7 +86,7 @@ def probeReport (σ : State) (genesisHash : List UInt8) (codeHash : List UInt8) 
 /-- The probe's initial state and its block. -/
 def build (p : Params) (σ : State) (genesis : Header) (kind : String) :
     Except String (State × List BlockSpec) := do
-  let some pvm := blobOf kind | throw s!"unknown probe {kind} (control, panic, oog, f4, f6)"
+  let some pvm := blobOf kind | throw s!"unknown probe {kind} (control, panic, oog, f4, f4b, f6)"
   let code := codeBlob pvm
   let h := hashL code
   let acct : ServiceAccount :=

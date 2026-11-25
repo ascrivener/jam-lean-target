@@ -1,0 +1,44 @@
+{
+  "name": "low_page_mapped_store",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 5, 59, 7, 0, 16, 0, 17],
+  "steps": [
+    {
+      "map": {
+        "address": 4096,
+        "is-writable": true,
+        "length": 4096
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 85
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 0, 0],
+        "pc": 4,
+        "memory": [
+          {
+            "address": 4096,
+            "contents": [85]
+          }
+        ],
+        "gas": 9975
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 25,
+      "pc": 0
+    }
+  ]
+}

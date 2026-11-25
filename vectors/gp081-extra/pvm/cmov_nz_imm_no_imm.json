@@ -1,0 +1,38 @@
+{
+  "name": "cmov_nz_imm_no_imm",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 3, 148, 167, 0, 5],
+  "steps": [
+    {
+      "set-reg": {
+        "reg": 7,
+        "value": 5
+      }
+    },
+    {
+      "set-reg": {
+        "reg": 10,
+        "value": 1
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "panic",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        "pc": 2,
+        "memory": [],
+        "gas": 9998
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 2,
+      "pc": 0
+    }
+  ]
+}

@@ -52,6 +52,8 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   start from the 0.8.0 genesis converted to v0.8.1 form (JamTarget/Upgrade.lean).
 - PVM harness: pvmrun, tools/pvm-ref (PolkaVM 0.38.1), vectors/pvm (1,408 vectors).
 - Block crafter and probes: vectors/blocks; refine vectors: vectors/refine.
+- Extra GP v0.8.1 vectors for cases the official suites miss (F4/F6 block traces, cmov_nz_imm,
+  out-of-range branches, RAM below 2¹⁶, F5): vectors/gp081-extra (README gives the equations per vector).
 - Shadow: scripts/shadow.py and docs/shadow.md; polkajam feed workflow (.github/workflows/polkajam-feed.yml)
   runs polkajam v0.8.0's testnet on Actions, fetches blocks over JAM-NP (scripts/jamnp_*.py),
   optional jamt workload with our service (tools/service). A v0.8.0 chain: suspended against the

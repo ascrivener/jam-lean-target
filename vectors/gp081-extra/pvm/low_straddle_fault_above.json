@@ -1,0 +1,45 @@
+{
+  "name": "low_straddle_fault_above",
+  "initial-pc": 0,
+  "initial-gas": 10000,
+  "program": [0, 0, 6, 54, 7, 255, 255, 0, 0, 33],
+  "steps": [
+    {
+      "map": {
+        "address": 61440,
+        "is-writable": false,
+        "length": 4096
+      }
+    },
+    {
+      "write": {
+        "address": 65535,
+        "contents": [1]
+      }
+    },
+    {
+      "run": {}
+    },
+    {
+      "assert": {
+        "status": "page-fault",
+        "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "pc": 0,
+        "memory": [
+          {
+            "address": 65535,
+            "contents": [1]
+          }
+        ],
+        "gas": 9975,
+        "page-fault-address": 65536
+      }
+    }
+  ],
+  "block-gas-costs": [
+    {
+      "cost": 25,
+      "pc": 0
+    }
+  ]
+}
