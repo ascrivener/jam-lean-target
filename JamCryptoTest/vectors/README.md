@@ -35,6 +35,17 @@ output of a valid signature (`-` otherwise).
 Expected verdicts: ark-vrf 0.1.0 verification after checked (`deserialize_compressed`) decoding of
 the key, the output point and the proof.
 
+## `bandersnatch_thin.txt`
+
+The Thin VRF of GP v0.8.1 (`JamCrypto.Bandersnatch.Thin`, GP #550): the 7 vectors of the
+Bandersnatch VRF-AD specification, Draft 35 (davxy/bandersnatch-vrf-spec commit 181aba2,
+`assets/vectors/bandersnatch_sha-512_ell2_thin.json`, unchanged up to Draft 36),
+`tag sk pk alpha ad h gamma beta proof_r proof_s`. `cryptotest` checks the public key, the input
+point h, the output point gamma, the output hash beta, signing (byte for byte) and verification
+of the 96-octet signature gamma ⌢ proof_r ⌢ proof_s (our assumed layout, see `ThinVrf.lean`).
+It also checks that mutations are rejected (bit flips in O, R and s, s + r, another ad, input
+or key, a 95-octet signature); those verdicts are ours, not from a reference.
+
 ## `signing.txt`
 
 Signing (`JamCrypto.Ed25519Sign`, `JamCrypto.BandersnatchSign`). Lean's signature must equal the
