@@ -20,6 +20,19 @@ python3 scripts/drive.py DIR --sock SOCK         # drive any target with a recor
 The Docker image (`Dockerfile`) follows the standard target packaging (`JAM_FUZZ*` variables) and
 binds the socket with socat, one process per fuzzer session.
 
+## Docker image
+
+Published to `ghcr.io/ascrivener/jam-lean-target` (`latest` and the short commit SHA from `main`,
+plus `v*` release tags; linux/amd64), built and checked by `.github/workflows/image.yml`. It runs
+like any other fuzzer target, as any user, with the socket in the mounted data directory:
+
+```
+docker pull ghcr.io/ascrivener/jam-lean-target:latest
+docker run --rm --init --user "$(id -u):$(id -g)" -v /tmp/jam_fuzz:/tmp/jam_fuzz \
+  -e JAM_FUZZ=1 -e JAM_FUZZ_SPEC=tiny -e JAM_FUZZ_DATA_PATH=/tmp/jam_fuzz \
+  -e JAM_FUZZ_SOCK_PATH=/tmp/jam_fuzz/fuzz.sock ghcr.io/ascrivener/jam-lean-target:latest
+```
+
 * `docs/gaps.md`: what the model or the protocol cannot do yet.
 * `docs/findings.md`: divergences, with GP references and verdicts.
 * `docs/shadow.md`: shadow mode (`scripts/shadow.py`), following a chain block by block against the model.
