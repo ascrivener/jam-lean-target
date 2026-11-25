@@ -41,9 +41,13 @@ def logErr (lines : List String) : IO Unit := do
   for l in lines do e.putStrLn s!"[jam-lean] {l}"
   e.flush
 
-/-- The SRS for the ring root: `JAM_LEAN_SRS`, default `data/bls12-381-srs-2-11-uncompressed-zcash.bin`. -/
+/-- The ring SRS shipped with jam-lean's JamCrypto. -/
+def defaultSrs : String :=
+  ".lake/packages/jam-lean/JamCryptoTest/data/bls12-381-srs-2-11-uncompressed-zcash.bin"
+
+/-- The SRS for the ring root: `JAM_LEAN_SRS`, default jam-lean's copy (`defaultSrs`). -/
 def loadSrs : IO JamCrypto.Ring.Srs := do
-  let path := (← IO.getEnv "JAM_LEAN_SRS").getD "data/bls12-381-srs-2-11-uncompressed-zcash.bin"
+  let path := (← IO.getEnv "JAM_LEAN_SRS").getD defaultSrs
   return JamCrypto.Ring.withSelectors (← JamCrypto.Ring.Srs.load path)
 
 /-- The `--gp VERSION` option, if given (it takes precedence over `JAM_GP`). -/
@@ -168,7 +172,7 @@ def replayTrace (dir : System.FilePath) : IO (Nat × Nat × List String) := do
   notes := notes ++ log
   match resp with
   | some (.stateRoot r) =>
-    let want := if hasGen then StateDecode.rawRoot initKvs else st1.pre.1
+    let want := if hasGen then rawStateRoot initKvs else st1.pre.1
     if r != want then notes := notes ++ [s!"Initialize: root {hex r}, expected {hex want}"]
   | _ => return (files.length, 0, notes ++ ["Initialize failed"])
   unless hasGen do

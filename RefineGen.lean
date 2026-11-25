@@ -57,9 +57,9 @@ def sid : Nat := 1000
 def programs : List (List UInt8) := [progHalt, progTrap, progLoop, progExport, progExport2]
 
 def account : ServiceAccount :=
-  { preimages := Std.ExtTreeMap.ofList (programs.map fun p => (blake p, p))
-    requests := Std.ExtTreeMap.ofList (programs.map fun p => ((blake p, p.length), [0]))
-    codeHash := blake progHalt, balance := 10 ^ 12, minAccGas := 0, minMemoGas := 0 }
+  programs.foldl (fun a p => a.requestSet (blake p) p.length [0])
+    { preimages := Std.ExtTreeMap.ofList (programs.map fun p => (blake p, p))
+      codeHash := blake progHalt, balance := 10 ^ 12, minAccGas := 0, minMemoGas := 0 }
 
 /-! ## Packages -/
 
@@ -193,8 +193,8 @@ def main (args : List String) : IO UInt32 := do
   let msg ← IO.FS.readBinFile base
   let .ok (.initialize hdr raw _) := Decoder.run (Request.decode params) msg
     | IO.eprintln "BASE is not an Initialize message"; return 1
-  let .ok d := StateDecode.decode params raw | IO.eprintln "state does not decode"; return 1
-  let σ := { d.state with accounts := d.state.accounts.insert sid account }
+  let .ok σ0 := JAM.StateDecode.decodeState params raw | IO.eprintln "state does not decode"; return 1
+  let σ := { σ0 with accounts := σ0.accounts.insert sid account }
   let initMsg := 1 :: hdr.encode ++ encodeRawState σ.serializeList ++ Codec.nat 0
   let peer : PeerInfo := { fuzzVersion := 1, features := 7, jamVersion := ⟨0, 8, 0⟩,
                            appVersion := ⟨0, 1, 0⟩, appName := "refinegen" }

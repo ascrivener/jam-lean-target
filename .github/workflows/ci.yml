@@ -22,10 +22,6 @@ jobs:
           restore-keys: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
       - name: Build (PVM and JAM of jam-lean, never Services)
         run: lake build jam-lean-target
-      - name: Ring root and ring VRF vectors (JamCrypto.Ring; v0.8.0 from tests/gen, v0.8.1 from the VRF spec Draft 35)
-        run: lake build ringtest && .lake/build/bin/ringtest
-      - name: Crypto test vectors (Ed25519, Bandersnatch IETF VRF; v0.8.1 Thin and Pedersen VRF)
-        run: lake build cryptotest && .lake/build/bin/cryptotest
       - name: Fetch the 0.8.0 fuzzer sessions
         run: git clone -q https://github.com/jam-conformance/jam-fuzzing vendor/jam-fuzzing && git -C vendor/jam-fuzzing checkout -q cddba17d4a0798a7c794e003df0c21140e1fc09a
       - name: Smoke test (session replay; known gap at slot 25, finding F2, see docs/gaps.md)
