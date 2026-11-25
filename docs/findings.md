@@ -119,6 +119,30 @@ it available and accumulates it with g = 100,000. Compared: state root and full 
 * F5 lives only in refine's inner PVM, which block import does not run: not tested at block level.
 * polkajam not yet tested (binary not reachable from the sandbox; see the shadow-mode work).
 
+## F7. `bless` by a non-manager: GP v0.8.0 returns HUH (GP #519), the traces expect OK
+
+* **Input**: three steps of the published traces in jam-fuzzing `fuzz-reports/0.8.0/traces`:
+  `1793732768_5752` step 36, `1793788758_6079` step 39, `1793732420_2880` step 5685. In each,
+  a service that is not the manager (χ_M) calls `bless` during accumulation and folds the host
+  call's result into an 8-octet value it keeps in its storage.
+* **Traces**: the post-state holds the value that results from `bless` returning OK.
+* **Model**: `bless` returns HUH. The post-state differs from the trace's in exactly that one
+  8-octet storage value per step. Everything else agrees, including π (the accumulation gas of
+  each service).
+* **Evidence**: the same accumulation with only `bless`'s ω7 replaced by OK, the instruction path
+  unchanged, reproduces the trace's stored value byte for byte in all three steps. Any other
+  result code gives a different value.
+* **GP v0.8.0**: Ω_B (`pvm_invocations.tex` l. 755) returns HUH, leaving the privileges unchanged,
+  when x_id ≠ (x_state)_manager. This condition comes from GP #519 "Restrict bless to manager",
+  which is part of v0.8.0. GP v0.7.1 and v0.7.2 have no such case and return OK; the change a
+  non-manager makes to its own copy of the privileges is then dropped by eq. `accpar`. GP v0.8.1
+  (#558, per-record `bless`) still returns HUH for these callers: each one changes privileges it
+  does not hold.
+* **Verdict**: model right for GP v0.8.0. The process does not follow #519, a change that is part
+  of v0.8.0: it applies the pre-#519 rule. The three steps are listed in
+  `scripts/shadow-known.txt`.
+* **Status**: explained 2026-11-25 (Adam approved recording it). Nothing to report.
+
 ## F0. jam-lean: signing context strings kept the GP's `$` sigil
 
 * **Model**: `JAM.contextString "$jam_ticket_seal"` gave the octets `$jam_ticket_seal`, so with real

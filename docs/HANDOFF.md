@@ -52,7 +52,7 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 - Shadow: scripts/shadow.py and docs/shadow.md; polkajam feed workflow (.github/workflows/polkajam-feed.yml)
   runs polkajam v0.8.0's testnet on Actions, fetches blocks over JAM-NP (scripts/jamnp_*.py),
   optional jamt workload with our service (tools/service).
-- Findings: docs/findings.md (F0–F6). Gaps: docs/gaps.md. GP changes after v0.8.0: docs/gp-after-0.8.0.md.
+- Findings: docs/findings.md (F0–F7). Gaps: docs/gaps.md. GP changes after v0.8.0: docs/gp-after-0.8.0.md.
 
 ## Results so far (results per implementation are kept out of the repo)
 - 0.8.0 example sessions: forks 97/97; no_forks matches to slot 24, slot 25 is F2 (GP #533).
