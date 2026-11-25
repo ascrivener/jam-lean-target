@@ -17,7 +17,7 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   follows GP #N" (docs/gp-after-0.8.0.md lists them), not as bugs. Triage every divergence there first.
 - Ed25519 acceptance: ZIP-215 (2026-11-15).
 - All crypto in plain Lean (JamCrypto); crypto in jam-lean stays a parameter, the target supplies it.
-- Ring domain sized by the chain's V (vectors show it; GP silent).
+- Ring domain sized by the chain's V (vectors show it; GP silent) for v0.8.0; for v0.8.1 fixed at 2048 per the cited VRF spec Draft 35 §5 (2026-11-25).
 - Refine: erasure root by GP v0.8.0 §H.3 (not GP #580); a package that exports nothing gets Error
   (undefined in v0.8.0, see GP #583); the bundle is read as the GP bundle encoding B (assumption,
   asked on jam-fuzzing PR #214, no answer yet).
@@ -40,6 +40,10 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   (`latest` + short SHA on main, `v*` tags), public. The workflow runs the image the way jam-fuzzing's
   target.py does and replays the forks session (97/97) and vectors/refine (24/24) before pushing.
 - Crypto: JamCrypto/ (Ed25519, Bandersnatch IETF VRF, ring root, Ring VRF, signing, JIP-5 dev keys).
+  GP v0.8.1's Bandersnatch crypto (GP #550: Thin VRF, the VRF spec's Draft 35 Pedersen and ring
+  VRF) sits alongside it and is selected by `JamCrypto.GpVersion` / `--gp 0.8.1` / `JAM_GP`. The
+  default is 0.8.0 until the jam-lean pin moves to gp-v0.8.1 (docs/crypto-notes.md, docs/gaps.md
+  item 6: signature layout O ⌢ R ⌢ s and ring domain 2048, Adam's readings of 2026-11-25).
 - PVM harness: pvmrun, tools/pvm-ref (PolkaVM 0.38.1), vectors/pvm (1,408 vectors).
 - Block crafter and probes: vectors/blocks; refine vectors: vectors/refine.
 - Shadow: scripts/shadow.py and docs/shadow.md; polkajam feed workflow (.github/workflows/polkajam-feed.yml)

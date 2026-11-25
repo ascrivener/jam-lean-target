@@ -38,9 +38,11 @@ def oracleCrypto : Crypto :=
     chain (GP `Cvalcount`). The ring domain is sized by V (see docs/crypto-notes.md). -/
 def validatorsOf (p : Params) : Nat := if p.coreCount == 2 then 6 else 1023
 
-/-- The session's crypto: everything in plain Lean. -/
-def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) : Crypto :=
-  JamCrypto.withSignatures (JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto)
+/-- The session's crypto: everything in plain Lean, for Gray Paper version `gp` (default v0.8.0, the
+    version of the pinned jam-lean model; v0.8.1 switches the Bandersnatch signatures to the Thin
+    VRF and the ring VRF to the VRF spec's Draft 35, GP #550). -/
+def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) (gp : JamCrypto.GpVersion := .v080) : Crypto :=
+  JamCrypto.withSignatures (JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto gp) (gp := gp)
 
 /-- A state the target holds: σ after the block with this header, and the headers 𝒜 its chain
     retains (oldest first, ending with this block's header). -/

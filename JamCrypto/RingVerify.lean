@@ -171,7 +171,7 @@ def frChallenges (t : Transcript) (l : String) (n : Nat) : List Nat × Transcrip
 /-- The ring proof verifier: the ring with commitment (cx, cy, csel) over domain size N holds a
     key k with k + b·H = `result` for some b. -/
 def ringProofOk (srs : Srs) (dom : Nat) (cx cy csel : G1.Aff) (result : Curve.Aff)
-    (p : RingProof) : Bool := Id.run do
+    (p : RingProof) (k : Consts := .v080) : Bool := Id.run do
   let some g2 := srs.g2Raw[0]? |>.bind Pairing.G2.decode | return false
   let some tg2 := srs.g2Raw[1]? |>.bind Pairing.G2.decode | return false
   let some g1 := srs.g1[0]? | return false
@@ -179,7 +179,7 @@ def ringProofOk (srs : Srs) (dom : Nat) (cx cy csel : G1.Aff) (result : Curve.Af
   let lbl (s : String) := s.toUTF8.toList
   -- transcript
   let vk := unc g1 ++ (srs.g2Raw[0]!).toList ++ (srs.g2Raw[1]!).toList ++ unc cx ++ unc cy ++ unc csel
-  let t := (Transcript.new suiteId).label (lbl "vk") |>.append vk
+  let t := (Transcript.new k.label).label (lbl "vk") |>.append vk
   let t := t.label (lbl "instance") |>.append (frLE result.x ++ frLE result.y)
   let t := t.label (lbl "committed_cols") |>.append (unc p.cBits ++ unc p.cIpa ++ unc p.cAx ++ unc p.cAy)
   let (alphas, t) := frChallenges t "constraints_aggregation" 7
@@ -205,7 +205,7 @@ def ringProofOk (srs : Srs) (dom : Nat) (cx cy csel : G1.Aff) (result : Curve.Af
   -- constraints
   let e := p.evals
   let (px, py, sel, b, ipa, ax, ay) := (e[0]!, e[1]!, e[2]!, e[3]!, e[4]!, e[5]!, e[6]!)
-  let seed := Curve.accumulatorBase
+  let seed := k.seed
   let sr := (Curve.addE seed.toExt result.toExt).toAff
   let nb := sub 1 b
   let c0 := mul (sub (Fr.neg ipa) (mul sel b)) notLast

@@ -13,8 +13,8 @@ Bandersnatch VRF signature verification and its output Y; the ring fields (`bsRi
 The Bandersnatch signature scheme depends on the Gray Paper version (`GpVersion`): v0.8.0 uses
 the IETF VRF (`Bandersnatch.ietfVerify`), v0.8.1 the Thin VRF of the VRF spec's Draft 35
 (`Bandersnatch.Thin.verify`, GP #550). The default stays v0.8.0, the version of the pinned
-jam-lean model. Only the plain signatures are switched so far: the v0.8.1 ring VRF and ring root
-(also changed by Draft 35) are not implemented yet.
+jam-lean model. The ring VRF and ring root of each version are selected the same way by
+`Ring.crypto`.
 -/
 
 namespace JamCrypto

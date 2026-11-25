@@ -12,3 +12,8 @@
 4. **No Unix sockets in Lean core/Std**: `serve` uses stdin/stdout behind socat (or
    `scripts/bridge.py`).
 5. **Tiny 𝖫 = 24** as the fuzzer protocol specifies (the GP defines only the full chain).
+6. **GP v0.8.1 crypto (behind `--gp 0.8.1`), readings to confirm with 0.8.1 vectors or fuzzer
+   blocks**: the 96-octet Thin VRF signature is O ⌢ R ⌢ s (GP gives 96 octets, the VRF spec
+   encodes only R ⌢ s; Adam, 2026-11-25). The ring domain is fixed at 2048 for every chain, per
+   Draft 35 §5 (Adam, 2026-11-25; v0.8.0 stays sized by V). The ring transcript label follows
+   Draft 35's vectors (suite id), not its prose ("ring-proof"). See docs/crypto-notes.md.
