@@ -6,7 +6,8 @@ PolkaVM may differ from the paper. Formats are the official ones, so any team ca
 
 * `blocks/`: block-import traces, the format of jam-test-vectors `traces/` (binary only):
   `genesis.bin` = ℰ(genesis header, state), `00000001.bin` = ℰ(pre-state, block, post-state), each
-  state ℰ(root, ↕[(key, ↕value)]). All signatures are real (JIP-5 development keys).
+  state ℰ(root, ↕[(key, ↕value)]). All signatures are real (JIP-5 development keys). The JSON
+  forms that jam-test-vectors also ships are not provided (jam-lean has no JSON encoder).
 * `pvm/`: the koute/jamtestvectors `pvm/programs` JSON format (schema `pvm/schema.asn`). As in the
   official vectors, `pc` after ☇ is the instruction that ended the run (Ψ itself returns ı = 0), and
   `memory` lists the runs of non-zero octets.
