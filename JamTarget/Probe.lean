@@ -15,7 +15,7 @@ available, has no prerequisites, and accumulates at once: Ψ_A runs the probe's 
 instruction 5 with `probeGas`. The accumulation statistics π_S[s] then record the gas used,
 which enters the state root.
 
-| kind | code (from instruction 5) | GP v0.8.0 |
+| kind | code (from instruction 5) | GP v0.8.1 (as v0.8.0) |
 | --- | --- | --- |
 | `control` | `jump_ind ω0` (ω0 = 2³² − 2¹⁶) | halt |
 | `panic` | `trap` | charge the block, ☇ |

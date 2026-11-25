@@ -65,9 +65,9 @@ the second (instead of matching the sign of u). The fuzzer's blocks verify with 
 
 GP v0.8.1 switches 𝔹̄ to the **Thin VRF** and cites the Bandersnatch VRF-AD specification
 **Draft 35** (davxy/bandersnatch-vrf-spec commit 181aba2) for all of Appendix G, so the ring VRF
-changes too. The v0.8.1 path is chosen by `JamCrypto.GpVersion.v081`. The target selects it with
-`--gp 0.8.1` or `JAM_GP=0.8.1`; the default stays 0.8.0 until the jam-lean pin moves to its
-gp-v0.8.1 branch. Only the crypto changes; the state transition is still the pinned model's.
+changes too. The v0.8.1 path is `JamCrypto.GpVersion.v081`. Since 2026-11-25 the target uses it
+always (with the pin on jam-lean's v0.8.1 model), in the VRF spec's vector reading
+(`JamCrypto.Reading.vectors`; docs/gaps.md item 6).
 
 * `JamCrypto/ThinVrf.lean`: suite `Bandersnatch-SHA512-ELL2-v1`, SHA-512 counter-mode transcript,
   hash to curve (DST suite_id ⌢ 0x60), output hash, Thin VRF prove and verify. Tests: the spec's 7
@@ -84,7 +84,8 @@ Choices the paper and the draft leave open:
 * **96-octet signature layout.** GP gives 𝔹̄ as 96-octet strings and reads Y from the signature,
   but the draft encodes only the proof (R, s). We read it as O ⌢ R ⌢ s, the output point first as
   in the v0.8.0 IETF signature and the ring proof (`Thin.thinEncode`/`thinDecode`); Adam,
-  2026-11-25. The planned check: once fuzzer blocks for 0.8.1 exist, only one layout will verify.
+  2026-11-25, and davxy confirmed it (graypaper#593; spec issue davxy/bandersnatch-vrf-spec#30).
+  Once fuzzer blocks for 0.8.1 exist, only one layout will verify.
 * **Z_pad**: hash to curve uses a zero prefix of 48 octets, not RFC 9380's 128. Draft 35's own
   vectors require this, and Draft 36 states it explicitly.
 * **Ring transcript label**: §5 of the draft says the ring proof transcript starts with a

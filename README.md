@@ -1,9 +1,12 @@
 # jam-lean-target
 
-The [jam-lean](https://github.com/ascrivener/jam-lean) model of JAM (Gray Paper v0.8.0) as a
+The [jam-lean](https://github.com/ascrivener/jam-lean) model of JAM (Gray Paper **v0.8.1**) as a
 target of the JAM conformance fuzzer ([jam-fuzzing](https://github.com/jam-conformance/jam-fuzzing),
 fuzzer protocol v1). It uses only jam-lean's `PVM`, `JAM` and `JamCrypto` libraries (pinned commit in
 `lakefile.lean`), toolchain Lean v4.36.0-rc1, core and Std only.
+
+The target moved from GP v0.8.0 to v0.8.1 on 2026-11-25 (with jam-lean). The last v0.8.0 target
+is commit `671f256`; its image is `ghcr.io/ascrivener/jam-lean-target:671f256`.
 
 ```
 lake build
@@ -23,7 +26,11 @@ binds the socket with socat, one process per fuzzer session.
 ## Docker image
 
 Published to `ghcr.io/ascrivener/jam-lean-target` (`latest` and the short commit SHA from `main`,
-plus `v*` release tags; linux/amd64), built and checked by `.github/workflows/image.yml`. It runs
+plus `v*` release tags; linux/amd64). `latest` and the SHA tags from this change on are GP v0.8.1;
+`671f256` and earlier SHA tags are GP v0.8.0. The image is built and checked by
+`.github/workflows/image.yml`. Until GP 0.8.1 fuzzer data exists that check is a smoke test of the
+plumbing (the refine vectors and a session the image's own crafter makes, replayed by the same
+model), not conformance evidence. It runs
 like any other fuzzer target, as any user, with the socket in the mounted data directory:
 
 ```
@@ -39,6 +46,6 @@ docker run --rm --init --user "$(id -u):$(id -g)" -v /tmp/jam_fuzz:/tmp/jam_fuzz
 
 ## Rules
 
-Model from GP v0.8.0 only; no `sorry`, `partial def`, `implemented_by`, `native_decide` or
+Model from GP v0.8.1 only (jam-lean's rules); no `sorry`, `partial def`, `implemented_by`, `native_decide` or
 `bv_decide` (`scripts/check-forbidden.sh`); axioms only `propext`, `Classical.choice`,
 `Quot.sound`.

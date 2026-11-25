@@ -20,7 +20,7 @@ little-endian integer (framing is in `JamTarget.IO`).
 | 7   | WorkReport   | target → fuzzer |
 | 255 | Error        | target → fuzzer |
 
-`Block` and `Header` are GP v0.8.0's, decoded by jam-lean (`JAM.Block.decode`).
+`Block` and `Header` are GP v0.8.1's, decoded by jam-lean (`JAM.Block.decode`).
 -/
 
 namespace JamTarget

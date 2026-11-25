@@ -17,8 +17,10 @@ Block import is jam-lean's Υ (`JAM.importBlock`, GP §4–§5), unchanged.
 ## Cryptography
 
 `JAM.Crypto` is a parameter of Υ. The session's `crypto` (`sessionCrypto`) is all in plain Lean
-(`JamCrypto`): Ed25519 under ZIP-215 rules (Adam's decision 2026-11-15), the Bandersnatch IETF VRF,
-the ring root O(**k**) for the chain's V validators, and Ring VRF proofs (GP §3.8, Appendix G).
+(jam-lean's `JamCrypto`), for GP v0.8.1: Ed25519 under ZIP-215 rules (Adam's decision 2026-11-15),
+the Bandersnatch Thin VRF, the ring root O(**k**) and Ring VRF proofs of the VRF spec's Draft 35
+(GP #550, Appendix G), in the reading of that draft's test vectors (`JamCrypto.Reading.vectors`; see
+docs/gaps.md).
 -/
 
 namespace JamTarget
@@ -35,14 +37,20 @@ def oracleCrypto : Crypto :=
     bsRingOut := Sha512.vrfOutput }
 
 /-- V, the number of validators: 6 for the tiny chain (the vectors' convention), 1023 for the full
-    chain (GP `Cvalcount`). The ring domain is sized by V (see docs/crypto-notes.md). -/
+    chain (GP `Cvalcount`). (The GP v0.8.1 ring domain is fixed at 2048, `JamCrypto.Ring.domain081`,
+    whatever V is.) -/
 def validatorsOf (p : Params) : Nat := if p.coreCount == 2 then 6 else 1023
 
-/-- The session's crypto: everything in plain Lean, for Gray Paper version `gp` (default v0.8.0, the
-    version of the pinned jam-lean model; v0.8.1 switches the Bandersnatch signatures to the Thin
-    VRF and the ring VRF to the VRF spec's Draft 35, GP #550). -/
-def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) (gp : JamCrypto.GpVersion := .v080) : Crypto :=
-  JamCrypto.withSignatures (JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto gp) (gp := gp)
+/-- The reading of the VRF spec's Draft 35 the target uses: its test vectors' (an assumption, see
+    docs/gaps.md; the published vectors and the fuzzer's blocks follow it). -/
+def cryptoReading : JamCrypto.Reading := .vectors
+
+/-- The session's crypto: everything in plain Lean, GP v0.8.1 (Thin VRF and the Draft 35 ring VRF,
+    GP #550), in the reading `cryptoReading`. -/
+def sessionCrypto (srs : JamCrypto.Ring.Srs) (p : Params) : Crypto :=
+  JamCrypto.withSignatures
+    (JamCrypto.Ring.crypto srs (validatorsOf p) oracleCrypto (gp := .v081) (rd := cryptoReading))
+    (gp := .v081) (rd := cryptoReading)
 
 /-- A state the target holds: σ after the block with this header, and the headers 𝒜 its chain
     retains (oldest first, ending with this block's header). -/
@@ -81,7 +89,7 @@ def paramsOf (spec : String) : Option Params :=
   | _ => none
 
 def ourInfo (features : Nat) : PeerInfo :=
-  { fuzzVersion := 1, features, jamVersion := { major := 0, minor := 8, patch := 0 },
+  { fuzzVersion := 1, features, jamVersion := { major := 0, minor := 8, patch := 1 },
     appVersion := { major := 0, minor := 1, patch := 0 }, appName := "jam-lean" }
 
 /-- The features the target supports. Ancestry is advertised: headers imported in the session

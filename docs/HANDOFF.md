@@ -3,7 +3,8 @@
 Read this, README.md and the other docs/*.md first.
 
 ## What this project is
-The jam-lean Lean 4 model of JAM (Gray Paper **v0.8.0 as released**, tag v0.8.0, 2026-06-03) as a
+The jam-lean Lean 4 model of JAM (Gray Paper **v0.8.1**, tag v0.8.1, 2026-11-16; moved from v0.8.0
+with jam-lean on 2026-11-25, the last v0.8.0 target is commit 671f256, image tag `671f256`) as a
 target of the JAM conformance fuzzer (jam-conformance/jam-fuzzing, protocol v1), plus our own
 generators, vectors and a shadow driver that checks a live node's chain against the model.
 
@@ -13,16 +14,19 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 (at most 3 parallel sessions, its standing decisions and CI rules).
 
 ## Adam's standing decisions
-- Model strictly GP v0.8.0. Divergences caused by later GP changes are logged as "the process
-  follows GP #N" (docs/gp-after-0.8.0.md lists them), not as bugs. Triage every divergence there first.
+- Model strictly GP v0.8.1 (since 2026-11-25; strictly v0.8.0 before). Divergences caused by later
+  GP changes are logged as "the process follows GP #N", not as bugs. docs/gp-after-0.8.0.md is the
+  v0.8.0-era list (all its rows are in v0.8.1).
 - Ed25519 acceptance: ZIP-215 (2026-11-15).
 - All crypto in plain Lean (JamCrypto); crypto in jam-lean stays a parameter, the target supplies it.
 - Ring domain sized by the chain's V (vectors show it; GP silent) for v0.8.0; for v0.8.1 fixed at 2048 per the cited VRF spec Draft 35 §5 (2026-11-25).
-- Refine: erasure root by GP v0.8.0 §H.3 (not GP #580); a package that exports nothing gets Error
-  (undefined in v0.8.0, see GP #583); the bundle is read as the GP bundle encoding B (assumption,
-  asked on jam-fuzzing PR #214, no answer yet).
+- Refine (GP v0.8.1): erasure code of GP #580, s♣ of GP #583 for a package that exports nothing,
+  Refine errors first (GP #568); the bundle is read as the GP bundle encoding B (assumption, asked
+  on jam-fuzzing PR #214, no answer yet). Under v0.8.0 the target used §H.3 and answered Error.
+- Crypto for v0.8.1: the VRF spec's vector reading (`JamCrypto.Reading.vectors`), the Thin
+  signature O ⌢ R ⌢ s (graypaper#593), ring domain 2048: docs/gaps.md item 6.
 - Ancestry (2026-11-25): keep rejecting lookup anchors that are only in the `Initialize` ancestry
-  (slot, hash): accepting them would skip GP v0.8.0's state-root check. The only paper-exact fix is
+  (slot, hash): accepting them would skip the GP's state-root check. The only paper-exact fix is
   the fuzzer sending full headers (possible later ask on jam-fuzzing #221, Adam's call).
 - Disclosure: F4–F6 stay public. Never publish per-implementation results (which node agrees or
   differs) in repos; report them to Adam. Outward-facing actions (issues, posts, contacting people,
@@ -38,20 +42,20 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   decode, session, Refine). jam-lean pin in lakefile.lean.
 - Docker image: published by .github/workflows/image.yml to **ghcr.io/ascrivener/jam-lean-target**
   (`latest` + short SHA on main, `v*` tags), public. The workflow runs the image the way jam-fuzzing's
-  target.py does and replays the forks session (97/97) and vectors/refine (24/24) before pushing.
-- Crypto: jam-lean's `JamCrypto` library (Ed25519, Bandersnatch IETF VRF, ring root, Ring VRF,
-  signing, JIP-5 dev keys; its vectors run in jam-lean's CI, notes in jam-lean docs/jamcrypto.md).
+  target.py does and replays vectors/refine/0.8.1-tiny (24/24) and a session the image's own crafter
+  makes (6/6) before pushing. Tags from 671f256 back are GP v0.8.0 images.
+- Crypto: jam-lean's `JamCrypto` library, GP v0.8.1 path (Ed25519 ZIP-215, Bandersnatch Thin VRF,
+  Draft 35 ring root and Ring VRF, in the vectors' reading; its vectors run in jam-lean's CI, notes in
+  jam-lean docs/jamcrypto.md; the target's assumptions in docs/gaps.md item 6). JIP-5 dev keys sign.
   σ from Initialize key-values: jam-lean's `JAM.StateDecode`. The ring SRS comes from jam-lean
-  (`JamCryptoTest/data/`; `JAM_LEAN_SRS` overrides it).
-  GP v0.8.1's Bandersnatch crypto (GP #550: Thin VRF, the VRF spec's Draft 35 Pedersen and ring
-  VRF) sits alongside it and is selected by `JamCrypto.GpVersion` / `--gp 0.8.1` / `JAM_GP`. The
-  default is 0.8.0 until the jam-lean pin moves to gp-v0.8.1 (docs/crypto-notes.md, docs/gaps.md
-  item 6: signature layout O ⌢ R ⌢ s and ring domain 2048, Adam's readings of 2026-11-25).
+  (`JamCryptoTest/data/`; `JAM_LEAN_SRS` overrides it). The generators (craft, probe, refinegen)
+  start from the 0.8.0 genesis converted to v0.8.1 form (JamTarget/Upgrade.lean).
 - PVM harness: pvmrun, tools/pvm-ref (PolkaVM 0.38.1), vectors/pvm (1,408 vectors).
 - Block crafter and probes: vectors/blocks; refine vectors: vectors/refine.
 - Shadow: scripts/shadow.py and docs/shadow.md; polkajam feed workflow (.github/workflows/polkajam-feed.yml)
   runs polkajam v0.8.0's testnet on Actions, fetches blocks over JAM-NP (scripts/jamnp_*.py),
-  optional jamt workload with our service (tools/service).
+  optional jamt workload with our service (tools/service). A v0.8.0 chain: suspended against the
+  v0.8.1 target until a 0.8.1 polkajam release (manual trigger only).
 - Findings: docs/findings.md (F0–F7). Gaps: docs/gaps.md. GP changes after v0.8.0: docs/gp-after-0.8.0.md.
 
 ## Results so far (results per implementation are kept out of the repo)
@@ -62,6 +66,8 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   (connecting to it as a peer is Adam's call).
 
 ## Open items
+- GP v0.8.1 switch (2026-11-25): checks on 0.8.0 data are suspended (docs/gaps.md item 7) until the
+  0.8.1 fuzzer data and vectors exist; then restore the session/shadow/trace checks and re-triage.
 - Storage-key stage 2 landed (jam-lean #243, #247; pin bumped 2026-11-25): every trace state
   decodes. Replay of the 89 published traces: aggregate counts in docs/gaps.md item 2. The 3 steps
   whose post-state differs come from `bless` by a non-manager: v0.8.0 (GP #519) says HUH, the traces

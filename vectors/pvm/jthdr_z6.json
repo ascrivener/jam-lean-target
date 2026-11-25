@@ -16,25 +16,12 @@
     {
       "assert": {
         "status": "panic",
-        "regs": [0, 0, 0, 0, 0, 0, 0, 2, 5, 0, 0, 0, 0],
-        "pc": 6,
+        "regs": [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
+        "pc": 0,
         "memory": [],
-        "gas": 976
+        "gas": 1000
       }
     }
   ],
-  "block-gas-costs": [
-    {
-      "cost": 22,
-      "pc": 0
-    },
-    {
-      "cost": 2,
-      "pc": 2
-    },
-    {
-      "cost": 2,
-      "pc": 3
-    }
-  ]
+  "block-gas-costs": []
 }

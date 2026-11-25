@@ -4,11 +4,11 @@ import JAM.Merkle
 import JAM.Decode
 
 /-!
-# The work-report function Ξ (GP v0.8.0 §14.4) and the `RefineBundle` request
+# The work-report function Ξ (GP v0.8.1 §14.4) and the `RefineBundle` request
 
 jam-lean gives the invocations Ψ_I and Ψ_R (`JAM.psiI`, `JAM.psiR`), the report types and their
 encodings, the erasure code ℰ_C (`JAM.Erasure.encode`) and the well-balanced Merkle root ℳ_B
-(`JAM.Merkle.root`). This module adds what Ξ needs beyond them, from GP v0.8.0:
+(`JAM.Merkle.root`). This module adds what Ξ needs beyond them, from GP v0.8.1:
 
 * the constant-depth Merkle root ℳ, its preprocessor C, the trace T, the justification paths J_x
   and the leaf pages L_x (Appendix E, eqs. `constantdepthmerkleroot`,
@@ -18,15 +18,16 @@ encodings, the erasure code ℰ_C (`JAM.Erasure.encode`) and the well-balanced M
 * Ξ itself (eq. `computereport`) with the count-up I, the digest function C (§14.3) and the
   authorizer p_a.
 
-## Readings of v0.8.0 (see docs/refine.md)
+## What GP v0.8.1 changed here (see docs/refine.md)
 
-* **No exports.** With **s** = [] the paper's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] and the
-  erasure root are undefined. The target answers `Error` (GP #583 later defined it).
-* **Bad exports before errors.** v0.8.0 checks |**e**| ≠ w_e before r ∉ 𝔹, and Ψ_R returns no
-  exports for ☇ and ∞, so an item with w_e > 0 that panics gives ⊚. GP #568 later swapped the
-  order; we keep v0.8.0's.
-* **Erasure code.** jam-lean's ℰ_C is §H.3 of v0.8.0 (degree < d); GP #580 later changed the
-  generator polynomial, which changes every parity shard and so the erasure root.
+* **No exports (GP #583).** **s**♣ uses the sized transpose ᵀ_v, so with **s** = [] each of its
+  v items is ℳ_B([]) = H_0 ("if no segments are exported, each item of **s**♣ is the zero hash").
+  v0.8.0 left this case undefined and the target answered `Error`.
+* **Errors before oversize and bad exports (GP #568).** I(p, j) first keeps an error r ∉ 𝔹, then
+  checks |r| + z > 𝖶_R, then |**e**| ≠ w_e (eq. `computereport`). v0.8.0 checked bad exports
+  first, so a panicking item with w_e > 0 gave ⊚.
+* **Erasure code (GP #580).** jam-lean's ℰ_C is v0.8.1's padded systematic code (`JAM.Erasure`):
+  every parity shard, and so the erasure root, differs from v0.8.0's.
 -/
 
 namespace JamTarget.Refine
@@ -122,8 +123,9 @@ def Bundle.encode (b : Bundle) : List UInt8 :=
   b.package.encode ++ b.extrinsics.flatten ++ b.imports.flatten ++
     (b.justifications.map varHashes).flatten
 
-/-- ᵀ of v rows (each a list of chunks, one per validator) given as columns: chunk i of every row,
-    for every i < v. With no rows each of the v items is []. -/
+/-- ᵀ_v of the rows (each a list of chunks, one per validator) given as columns: chunk i of every
+    row, for every i < v. With no rows each of the v items is [] (the sized transpose of GP v0.8.1,
+    GP #583). -/
 def columns (v : Nat) (rows : List (List ByteArray)) : List (List (List UInt8)) :=
   (List.range v).map fun i => rows.map fun r => (r.getD i ByteArray.empty).toList
 
@@ -142,7 +144,7 @@ def availabilityWith (w : Array (Array Nat)) (h : List UInt8) (b : List UInt8)
   return { packageHash := ⟨h.toArray⟩, bundleLength := b.length, erasureRoot := ⟨er.toArray⟩,
            erasureShards := v, segmentRoot := ⟨(constRoot s).toArray⟩, segmentCount := s.length }
 
-/-- A(h, **b**, **s**, v) with GP v0.8.0's erasure code ℰ_C (jam-lean `Erasure.encodeWeights`). -/
+/-- A(h, **b**, **s**, v) with GP v0.8.1's erasure code ℰ_C (jam-lean `Erasure.encodeWeights`). -/
 def availability (h : List UInt8) (b : List UInt8) (s : List (List UInt8)) (v : Nat) :
     Option AvailabilitySpec :=
   availabilityWith (Erasure.encodeWeights v) h b s v
@@ -175,14 +177,13 @@ def countUp (params : Params) (d : Accounts) (c : Nat) (p : WorkPackage) (r : Li
     let o := psiR params d c j p r ibar xbar ℓ
     let zeros := List.replicate w.exportCount zeroSegment
     let (res, e) : WorkResult × List (List UInt8) :=
+      -- GP v0.8.1 order (#568): r ∉ 𝔹, then |r| + z > 𝖶_R, then |e| ≠ w_e
       match o.result with
+      | .err er => (.err er, zeros)
       | .ok b =>
         if b.size + z > Constants.Cmaxreportvarsize then (.err .oversize, zeros)
         else if o.exports.length ≠ w.exportCount then (.err .badExports, zeros)
         else (o.result, o.exports)
-      | .err er =>
-        -- v0.8.0 order: |r| + z > 𝖶_R cannot hold for an error (z ≤ 𝖶_R), then bad exports
-        if o.exports.length ≠ w.exportCount then (.err .badExports, zeros) else (.err er, zeros)
     let z' := match res with | .ok b => z + b.size | .err _ => z
     (out ++ [(digest w res o.gasUsed, e)], z', ℓ + w.exportCount)
   ((p.items.zip (List.range p.items.length)).foldl step ([], r.length, 0)).1
@@ -243,19 +244,16 @@ def xiWith (spec : List UInt8 → List UInt8 → List (List UInt8) → Except Fa
   return { spec := a, context := p.context, core := c, authorizerHash := packageAuthorizer p,
            authTrace := r, segmentRootLookup := l, digests := ds.map (·.1), authGasUsed := gI }
 
-/-- A of GP v0.8.0 (§14.4.1), which has no value when nothing is exported: with **s** = [] the
-    paper's ᵀ[] has no size, so ᵀ[**b**♣, **s**♣] is undefined. (GP #583, after v0.8.0, later
-    defined it; the target stays with v0.8.0 and answers `Error`.) -/
-def spec080 (v : Nat) (h b : List UInt8) (s : List (List UInt8)) : Except Failure AvailabilitySpec :=
-  if s.isEmpty then throw (.noReport "nothing exported: undefined in GP v0.8.0 (see GP #583)")
-  else match availability h b s v with
-    | some a => pure a
-    | none => throw (.bundle "erasure coding failed")
+/-- A of GP v0.8.1 (§14.4.1), defined also when nothing is exported (GP #583). -/
+def spec081 (v : Nat) (h b : List UInt8) (s : List (List UInt8)) : Except Failure AvailabilitySpec :=
+  match availability h b s v with
+  | some a => pure a
+  | none => throw (.bundle "erasure coding failed")
 
-/-- Ξ(p, c, l, v) of GP v0.8.0 (eq. `computereport`) over the accounts **d**. -/
+/-- Ξ(p, c, l, v) of GP v0.8.1 (eq. `computereport`) over the accounts **d**. -/
 def xi (params : Params) (d : Accounts) (c : Nat) (l : OctetDict) (v : Nat) (b : Bundle) :
     Except Failure WorkReport :=
-  xiWith (spec080 v) params d c l v b
+  xiWith (spec081 v) params d c l v b
 
 /-! ## The request -/
 
