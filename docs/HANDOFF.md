@@ -65,20 +65,22 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 - JAM Toaster (`public-30`): genesis decodes under GP v0.8.0, roots match; blocks not yet checked
   (connecting to it as a peer is Adam's call).
 
-## Open items
-- GP v0.8.1 switch (2026-11-25): checks on 0.8.0 data are suspended (docs/gaps.md item 7) until the
-  0.8.1 fuzzer data and vectors exist; then restore the session/shadow/trace checks and re-triage.
-- Storage-key stage 2 landed (jam-lean #243, #247; pin bumped 2026-11-25): every trace state
-  decodes. Replay of the 89 published traces: aggregate counts in docs/gaps.md item 2. The 3 steps
-  whose post-state differs come from `bless` by a non-manager: v0.8.0 (GP #519) says HUH, the traces
-  OK (pre-#519). Open: the ancestry gap (item 3) for traces without genesis.bin.
-- jam-lean (from its archived parent): add `proofs` to main's required checks (Adam, settings);
-  pick the next proof step (T2 option B; check whether step 10, the vendored-blob check, was done by
-  the Witness session's child on 2026-11-20).
-- jam-fuzzing #221 (Adam's issue, integration of this target) and PR #214 (refine wire format): watch
-  for replies Adam relays.
-- Fellowship (handled by the "Rank 2 application follow-up" session): Evaluations PR #367 approved
-  by davxy; referendum on track 32 pending.
+## Open items (2026-11-25, end of day)
+- **0.8.1 conformance:** waiting for davxy's 0.8.1 fuzzer and vectors. Images: `:v0.8.1` / `:latest`
+  (GP v0.8.1, f9acace), `:v0.8.0` (671f256). Announced on jam-fuzzing #221. When the data arrives:
+  restore the suspended checks (gaps.md item 7), triage every divergence against GP v0.8.1.
+- **Crypto readings (gaps.md item 6):** the target uses the VRF spec's vector reading. Adam asked
+  davxy (privately, 2026-11-25) about the ring transcript label, Z_pad and the undefined "push R";
+  no answer yet. If the vectors are confirmed as intended, make them jam-lean's default, drop the
+  prose path and this assumption. Thin layout O‖R‖s confirmed by davxy on graypaper#593; he is
+  adding serialization rules to the spec (davxy/bandersnatch-vrf-spec#30), cited in the next GP.
+- **Upstream:** graypaper#592 (N(o) post-state undefined; jam-lean uses the input state) open.
+  F7 (bless by a non-manager) public in findings.md; check whether the 0.8.1 fuzzer still expects OK.
+- Ancestry gap (gaps.md item 3) for traces without genesis.bin: unchanged decision (reject).
+- jam-fuzzing PR #214 (refine wire format reading B): no answer yet.
+- Fellowship: Rank II referendum 687 deciding (decision deposit placed 2026-11-25); claim the
+  deposit refund afterwards.
+- jam-lean: Services proofs paused since c22c197 (proofs CI on demand only); see jam-lean HANDOFF.
 
 ## Environment notes
 - Release assets of repos not attached to the session are blocked; container registries and git
