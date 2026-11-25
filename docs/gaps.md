@@ -15,7 +15,7 @@
    non-manager service calls `bless`, and GP v0.8.0's Ω_B returns HUH (the manager check of GP #519,
    "Restrict bless to manager", in v0.8.0; absent in v0.7.1 and v0.7.2). The traces' post-states are
    those of `bless` returning OK, the pre-#519 rule: with OK in place of HUH the model reproduces
-   each value. The model follows v0.8.0 here.
+   each value. The model follows v0.8.0 here (finding F7).
 3. **Ancestry**: `Initialize` ancestry items carry (slot, hash) only, but GP 0.8.0 eq. 11.36 also
    needs h'_R of the child header; only headers imported in the session form 𝒜.
 4. **No Unix sockets in Lean core/Std**: `serve` uses stdin/stdout behind socat (or
