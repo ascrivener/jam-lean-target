@@ -3,7 +3,8 @@ import JamCrypto
 /-!
 # `lake exe cryptotest [DIR]`: the JamCrypto test vectors
 
-Runs every vector of `DIR/ed25519.txt`, `DIR/bandersnatch_ietf.txt` and `DIR/signing.txt` (default
+Runs every vector of `DIR/ed25519.txt`, `DIR/bandersnatch_ietf.txt`, `DIR/bandersnatch_thin.txt`
+and `DIR/signing.txt` (default
 `JamCryptoTest/vectors`, see its README) and exits non-zero on a mismatch. Prints the time per
 verification.
 -/
@@ -107,6 +108,44 @@ def main (args : List String) : IO UInt32 := do
       check s!"bandersnatch sign {tag} verifies" (Bandersnatch.ietfVerify key ctx msg sig) failures
       check s!"bandersnatch sign {tag} output" (Bandersnatch.ietfOutput x ctx == some (Bandersnatch.vrfOutput sig)) failures
     | _ => if line != "" then check s!"signing malformed line: {line}" false failures
+  -- Bandersnatch Thin VRF (GP v0.8.1): the spec's Draft 35 vectors,
+  -- tag sk pk alpha ad h gamma beta proof_r proof_s; sig = gamma ⌢ proof_r ⌢ proof_s.
+  let mut thN := 0
+  let mut thT := 0
+  for line in (← IO.FS.lines s!"{dir}/bandersnatch_thin.txt") do
+    match line.splitOn " " with
+    | [tag, sk, pk, alpha, ad, h, gamma, beta, pr, ps] =>
+      let x := leToNat (unhex sk)
+      let (pk, alpha, ad, beta) := (unhex pk, unhex alpha, unhex ad, unhex beta)
+      let sig := unhex gamma ++ unhex pr ++ unhex ps
+      let T := Bandersnatch.Thin.verify
+      check s!"thin {tag} pk" (Bandersnatch.Thin.publicKey x == pk) failures
+      check s!"thin {tag} h" ((Bandersnatch.Thin.hashToCurve alpha).map Bandersnatch.encode == some (unhex h)) failures
+      check s!"thin {tag} gamma" ((Bandersnatch.Thin.hashToCurve alpha).map
+        (fun I => Bandersnatch.encode (Bandersnatch.curve.smul x I)) == some (unhex gamma)) failures
+      check s!"thin {tag} beta" (Bandersnatch.Thin.vrfOutput sig == beta) failures
+      check s!"thin {tag} signOutput" (Bandersnatch.Thin.signOutput x alpha == some beta) failures
+      check s!"thin {tag} prove" (Bandersnatch.Thin.sign x alpha ad == some sig) failures
+      let (ok, t) ← timed fun _ => T pk alpha ad sig
+      thN := thN + 1; thT := thT + t
+      check s!"thin {tag} verify" ok failures
+      let c081 := withSignatures { edVerify := fun _ _ _ => false } (gp := .v081)
+      let c080 := withSignatures { edVerify := fun _ _ _ => false }
+      check s!"thin {tag} selected by GpVersion.v081"
+        (c081.bsVerify pk alpha ad sig && c081.bsOut sig == beta && !c080.bsVerify pk alpha ad sig) failures
+      -- mutations, all rejected
+      let flip (i : Nat) := sig.set i (sig[i]! ^^^ 1)
+      check s!"thin {tag} flipped O rejected" (!T pk alpha ad (flip 0)) failures
+      check s!"thin {tag} flipped R rejected" (!T pk alpha ad (flip 32)) failures
+      check s!"thin {tag} flipped s rejected" (!T pk alpha ad (flip 64)) failures
+      check s!"thin {tag} s + r rejected" (!T pk alpha ad
+        (sig.take 64 ++ natToLE 32 (leToNat (sig.drop 64) + Bandersnatch.r))) failures
+      check s!"thin {tag} other ad rejected" (!T pk alpha (ad ++ [0]) sig) failures
+      check s!"thin {tag} other input rejected" (!T pk (alpha ++ [0]) ad sig) failures
+      check s!"thin {tag} other key rejected" (!T (Bandersnatch.Thin.publicKey (x + 1)) alpha ad sig) failures
+      check s!"thin {tag} 95 octets rejected" (!T pk alpha ad (sig.take 95)) failures
+      check s!"thin {tag} IETF verifier rejects it" (!Bandersnatch.ietfVerify pk alpha ad sig) failures
+    | _ => if line != "" then check s!"thin malformed line: {line}" false failures
   -- JIP-5 development keys = the genesis validators of the fuzzer's 0.8.0 sessions
   -- (jam-fuzzing fuzz-proto/examples/0.8.0/no_forks, Initialize, epoch mark).
   let genesis := [
@@ -122,6 +161,7 @@ def main (args : List String) : IO UInt32 := do
   IO.println s!"signing: {sgT / 1000 / max sgN 1} µs per signature"
   IO.println s!"ed25519: {edT / 1000 / max edN 1} µs per valid signature (ZIP 215)"
   IO.println s!"bandersnatch ietf: {bsT / 1000 / max bsN 1} µs per valid signature"
+  IO.println s!"bandersnatch thin: {thT / 1000 / max thN 1} µs per valid signature"
   let f ← failures.get
   if f == 0 then
     IO.println "all vectors pass"
