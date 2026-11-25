@@ -96,7 +96,8 @@ fall-through ∉ ϖ, **regardless of C**. Fall-through 3 ∈ ϖ here, so only th
 | `branch_eq_imm_target_in_range` (control) | 3, taken | 3 ∈ ϖ → continue at 3. 𝔟 = 20 (ζ₃ = 1, fall-through ζ₃ = 1), then [fallthrough] 2 (sjump(4), 4 ∈ ϖ), [trap] 2: ☇ at pc 4, gas 10,000 − 24 = 9,976. |
 
 Negative targets (ı + offset < 0) are left out: 𝔟 then reads ζ at a negative index, which
-eq. `instructions` does not define, so the paper does not fix the cost (raised with the parent session).
+eq. `instructions` does not define, so the paper does not fix the cost (jam-lean
+`docs/upstream-candidates.md`, note 2).
 
 ### RAM below 2¹⁶
 
