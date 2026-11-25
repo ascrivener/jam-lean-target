@@ -6,7 +6,13 @@
 2. **Resolved: σ from key-values that hold storage.** jam-lean's storage-key stage 2 (jam-lean
    #243) keys storage and requests by the state-key hash and carries a_i, a_o, so every state T(σ)
    can hold decodes. The decoder is jam-lean's `JAM.StateDecode` (jam-lean #247), which the target
-   now uses; jam-lean's tracetest checks the T(σ) round trip on every trace state. (Replay of the 89 published 0.8.0 traces: in progress.)
+   now uses; jam-lean's tracetest checks the T(σ) round trip on every trace state.
+   Replay of the 89 published 0.8.0 traces (jam-fuzzing `fuzz-reports/0.8.0`, `jam-lean-target
+   trace`, real crypto, v0.8.0 path; 2026-11-25): all 232 pre-states decode and reproduce their
+   root. 119 of 232 steps as the trace; 94 rejected for a lookup anchor outside the known ancestry
+   (traces without genesis.bin start mid-chain with no headers: item 3); 16 accepted where the trace
+   rejects (F3, GP #563); 3 post-state roots differ, each in one 8-octet service storage value
+   (open: not F2 and not GP #558; root cause being investigated).
 3. **Ancestry**: `Initialize` ancestry items carry (slot, hash) only, but GP 0.8.0 eq. 11.36 also
    needs h'_R of the child header; only headers imported in the session form 𝒜.
 4. **No Unix sockets in Lean core/Std**: `serve` uses stdin/stdout behind socat (or
