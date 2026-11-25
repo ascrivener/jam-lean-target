@@ -36,8 +36,9 @@ def blockcost(instrs):
         l = len([e for e in rob if e['state'] is not None])
         if i is not None and instrs[i]['slots'] <= dec and l < 32:
             ins = instrs[i]
-            for e in rob: e['regs'] = e['regs'] - ins['dst']
+            # GP v0.8.1 Ξ^dec: the dependencies p come from the ROB before this decode's update
             deps = {j for j, e in enumerate(rob) if ins['src'] & e['regs']}
+            for e in rob: e['regs'] = e['regs'] - ins['dst']
             rob.append(dict(state='decoding', left=ins['cycles'], deps=deps, regs=set(ins['dst']), units=ins['units']))
             dec -= ins['slots']; i = None if ins['term'] else i + 1
         elif ready() is not None and start > 0:
