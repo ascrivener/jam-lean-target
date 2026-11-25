@@ -1,17 +1,19 @@
 import JamTarget.Session
+import JamTarget.Upgrade
 
 /-!
 # `refinegen`: refine vectors (fuzzer sessions with `RefineBundle`)
 
 `lake exe refinegen BASE OUT` reads `BASE`, a fuzzer `Initialize` message (the 0.8.0 example
-sessions' `00000001_fuzzer_initialize.bin`), adds a service that holds a few tiny PVM programs as
+sessions' `00000001_fuzzer_initialize.bin`, converted to GP v0.8.1 form by `Upgrade.upgradeKvs`),
+adds a service that holds a few tiny PVM programs as
 preimages, and writes one minifuzz session per case under `OUT/<case>/`:
 
     00000000_fuzzer_peer_info.bin   00000000_target_peer_info.bin
     00000001_fuzzer_initialize.bin  00000001_target_state_root.bin
     00000002_fuzzer_refine_bundle.bin  00000002_target_work_report.bin (or _error.bin)
 
-The responses are the model's (GP v0.8.0). `jam-lean-target session OUT/<case>` replays a case.
+The responses are the model's (GP v0.8.1). `jam-lean-target session OUT/<case>` replays a case.
 -/
 
 open JAM JamTarget
@@ -102,8 +104,8 @@ def cases (slot : Nat) : List Case :=
   let pl := "payload".toUTF8.toList
   let xt := "extrinsic data".toUTF8.toList
   let imp (k : Nat) := (exported[k]!, Refine.justPath 0 exported k)
-  -- GP v0.8.0 has no erasure root when nothing is exported, so most cases end with an item that
-  -- exports one segment
+  -- most cases end with an item that exports one segment (v0.8.0 had no erasure root without
+  -- exports; the cases are kept as they were)
   let ex := item progExport "exporter".toUTF8.toList (exports := 1)
   [ { name := "halt", bundle := b [item progHalt pl, ex] },
     { name := "halt_core1", core := 1, bundle := b [item progHalt pl, ex] },
@@ -113,11 +115,11 @@ def cases (slot : Nat) : List Case :=
     { name := "export", bundle := b [item progExport pl (exports := 1)] },
     { name := "export_two_items",
       bundle := b [item progExport pl (exports := 1), item progExport (pl ++ pl) (exports := 1)] },
-    -- one export, then a panic: v0.8.0 ⊚ (no exports on ☇), GP #568 ☇
+    -- one export, then a panic: ☇ (GP #568; v0.8.0 gave ⊚)
     { name := "export_then_panic", bundle := b [item progExport2 pl (exports := 2)] },
     -- ⊚: the item exports nothing but declares one
     { name := "bad_exports", bundle := b [item progHalt pl (exports := 1)] },
-    -- v0.8.0: ⊚ (|e| ≠ w_e is checked before r ∉ 𝔹); GP #568: ☇
+    -- ☇: r ∉ 𝔹 is kept before |e| ≠ w_e is checked (GP #568; v0.8.0 gave ⊚)
     { name := "panic_with_exports", bundle := b [item progTrap pl (exports := 1)] },
     -- BAD: no preimage for the code hash
     { name := "no_code", bundle := b [{ item progHalt pl with codeHash := h [1, 2, 3] }, ex] },
@@ -134,9 +136,9 @@ def cases (slot : Nat) : List Case :=
       lookup := Std.ExtTreeMap.ofList [(exportedPkg.toList, exportedRoot.toList)],
       bundle := { b [item progHalt pl (imports := [(.package exportedPkg, 2), (.root exportedRoot, 0)]), ex] with
                   imports := [(imp 2).1, (imp 0).1], justifications := [(imp 2).2, (imp 0).2] } },
-    -- nothing exported: no erasure root in GP v0.8.0 (GP #583 later defined one)
-    { name := "err_nothing_exported", bundle := b [item progHalt pl] },
-    { name := "err_nothing_exported_two_items", bundle := b [item progHalt pl, item progTrap pl] },
+    -- nothing exported: each item of s♣ is H_0 (GP #583; v0.8.0 left it undefined)
+    { name := "nothing_exported", bundle := b [item progHalt pl] },
+    { name := "nothing_exported_two_items", bundle := b [item progHalt pl, item progTrap pl] },
     -- errors
     { name := "err_auth_panics", bundle := b [item progHalt pl] progTrap },
     { name := "err_extrinsic_mismatch",
@@ -149,8 +151,8 @@ def cases (slot : Nat) : List Case :=
       bundle := b [item progHalt pl] } ]
   |>.map fun c => let _ := pk; c
 
-/-- The erasure-code weights of GP #580 (after v0.8.0; the official erasure vectors' convention),
-    for cross-checks only: p of degree < d' = 2^⌈log₂ d⌉ through the d message words and zeros at
+/-- The erasure-code weights of GP #580 (the official erasure vectors' convention), written out
+    independently of jam-lean's `Erasure.encodeWeights` as a cross-check: p of degree < d' = 2^⌈log₂ d⌉ through the d message words and zeros at
     d̃ … (d'−1)~; validator i ≥ d gets p((i + d' − d)~). The zero points contribute nothing, so
     each parity row keeps its first d weights. -/
 def weights580 (v : Nat) : Array (Array Nat) :=
@@ -168,13 +170,6 @@ def encodePrefixed (q : Refine.Request) : List UInt8 :=
     q.bundle.package.encode ++ Codec.varSeq (fun x => Codec.nat x.length ++ x) q.bundle.extrinsics ++
     Codec.varSeq id q.bundle.imports ++ Codec.varSeq (Codec.varSeq id) q.bundle.justifications
 
-/-- A with the erasure code of GP #580 and, when nothing is exported, GP #583's **s**♣ (v zero
-    hashes): the report after those later GP changes, for comparison tooling only. -/
-def specPost080 (v : Nat) (h b : List UInt8) (s : List (List UInt8)) :
-    Except Refine.Failure AvailabilitySpec :=
-  match Refine.availabilityWith (weights580 v) h b s v with
-  | some a => pure a
-  | none => throw (.bundle "erasure coding failed")
 
 end RefineGen
 
@@ -193,10 +188,11 @@ def main (args : List String) : IO UInt32 := do
   let msg ← IO.FS.readBinFile base
   let .ok (.initialize hdr raw _) := Decoder.run (Request.decode params) msg
     | IO.eprintln "BASE is not an Initialize message"; return 1
+  let .ok raw := Upgrade.upgradeKvs raw | IO.eprintln "BASE is not a GP v0.8.0 state"; return 1
   let .ok σ0 := JAM.StateDecode.decodeState params raw | IO.eprintln "state does not decode"; return 1
   let σ := { σ0 with accounts := σ0.accounts.insert sid account }
   let initMsg := 1 :: hdr.encode ++ encodeRawState σ.serializeList ++ Codec.nat 0
-  let peer : PeerInfo := { fuzzVersion := 1, features := 7, jamVersion := ⟨0, 8, 0⟩,
+  let peer : PeerInfo := { fuzzVersion := 1, features := 7, jamVersion := ⟨0, 8, 1⟩,
                            appVersion := ⟨0, 1, 0⟩, appName := "refinegen" }
   let dir := System.FilePath.mk out
   IO.FS.createDirAll dir
@@ -208,10 +204,15 @@ def main (args : List String) : IO UInt32 := do
   writeBin (dir / "00000000_target_peer_info.bin") ((r0.map Response.encode).getD [])
   writeBin (dir / "00000001_fuzzer_initialize.bin") initMsg
   writeBin (dir / "00000001_target_state_root.bin") ((r1.map Response.encode).getD [])
+  -- jam-lean's ℰ_C is GP #580's: check it against the weights written out here
+  for v in [6, 1023] do
+    -- jam-lean's weights act on d' points, of which the last d' − d carry zero words
+    let d := Erasure.originalShards v
+    unless (Erasure.encodeWeights v).map (·.extract 0 d) == weights580 v do
+      IO.eprintln s!"Erasure.encodeWeights {v} is not GP #580's code"; return 1
   let mut index : List String :=
-    ["Responses are GP v0.8.0's. `NNNNNNNN_post080_work_report.bin` (not a response) is the report",
-     "after GP #580 (erasure code) and GP #583 (erasure root when nothing is exported), for",
-     "comparison tooling only.", "",
+    ["Responses are GP v0.8.1's (erasure code of GP #580, s♣ of GP #583, Refine errors first as in",
+     "GP #568).", "",
      "| # | case | response | summary |",
      "|---|------|----------|---------|"]
   let mut n := 2
@@ -237,11 +238,6 @@ def main (args : List String) : IO UInt32 := do
         s!"items: {String.intercalate ", " items}; bundle {w.spec.bundleLength} octets, {w.spec.segmentCount} exports"
       | some (.error m) => m
       | _ => ""
-    -- the report after GP #580 / #583, for comparison tooling (not a response)
-    let post := Refine.xiWith (specPost080 c.shards) params σ.accounts c.core c.lookup c.shards c.bundle
-    if let .ok w := post then
-      if (some (Response.workReport w)).map Response.encode != r.map Response.encode then
-        writeBin (dir / s!"{pad8 n}_post080_work_report.bin") (7 :: w.encode)
     index := index ++ [s!"| {pad8 n} | {c.name} | {kind} | {summary} |"]
     n := n + 1
   IO.FS.writeFile (dir / "CASES.md") (String.intercalate "\n" index ++ "\n")

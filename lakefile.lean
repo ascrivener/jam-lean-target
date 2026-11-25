@@ -14,7 +14,7 @@ Only the `PVM`, `JAM` and `JamCrypto` libraries of jam-lean are used, never `Ser
 package «jam-lean-target» where
   leanOptions := #[⟨`autoImplicit, false⟩]
 
-require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "5055102c3780184f685dc2adb8387362ce08bd97"
+require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "00b6b83a1dacc8e7317c704525144913149186fc"
 
 lean_lib JamTarget
 

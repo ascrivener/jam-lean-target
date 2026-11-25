@@ -1,5 +1,9 @@
 # Gray Paper changes after v0.8.0
 
+**History.** The target moved to GP v0.8.1 on 2026-11-25 (with jam-lean); every PR below up to
+#589 is part of v0.8.1, so none of them is a divergence of the process any more. This list stays
+as the record of the v0.8.0 era (findings F2, F3 and F7 were classified with it).
+
 The model follows GP v0.8.0 as released (2026-06-03, tag `v0.8.0`, commit 07f041d); Adam's
 decision. The fuzzer (polkajam-fuzz 0.1.29, "GP 0.8.0") and the 0.8.0 implementations follow
 v0.8.0 plus *some* later GP changes. A divergence is first checked against this list: if a change

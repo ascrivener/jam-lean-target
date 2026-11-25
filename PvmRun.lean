@@ -18,7 +18,7 @@ Conventions (as in the vectors and jam-lean's own runner `Tests/PvmTest`, which 
   fresh pages), `write` writes octets regardless of access, `set-reg` sets a register.
 * `run` calls Ψ(p, ı, ϱ, ϱ̃, ω, μ). Ψ returns ı = 0 on ∎ and ☇; the vectors report as `pc` the
   instruction whose step ended the run, which we recompute (`exitIndex`). After h̵ the next run
-  starts at ı + 1 + skip(ı) (as Ψ_H does, GP v0.8.0 §A.6); after F or ∞ at ı. ϱ̃ is carried over.
+  starts at ı + 1 + skip(ı) (as Ψ_H does, GP v0.8.1 §A.6); after F or ∞ at ı. ϱ̃ is carried over.
 * After ∎ or ☇ later `run` steps are dropped (as PolkaVM cannot resume either).
 * `memory` lists the maximal runs of non-zero octets, in address order.
 -/
@@ -95,7 +95,7 @@ structure VmState where
   regs : Regs := Vector.replicate 13 0
   mem : Memory := .empty
 
-/-- ϱ^Δ(**c**, **k**, n) for every n ∈ ϖ (GP v0.8.0 §A.9), as `{pc, cost}` objects; `none` when the
+/-- ϱ^Δ(**c**, **k**, n) for every n ∈ ϖ (GP v0.8.1 §A.9), as `{pc, cost}` objects; `none` when the
     blob does not deblob (then Ψ panics before any step). -/
 def blockCostsJson (p : ByteArray) : Option Json := do
   let P ← Blob.parse? p

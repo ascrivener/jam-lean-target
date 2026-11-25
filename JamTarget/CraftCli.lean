@@ -1,4 +1,5 @@
 import JamTarget.Craft
+import JamTarget.Upgrade
 
 /-!
 # The crafter's front end: fuzzer-protocol sessions from a description
@@ -10,7 +11,7 @@ own session handler (jam-lean's Υ). It writes the session in the minifuzz forma
 
 * `00000000_fuzzer_peer_info.bin` (and the model's `00000000_target_peer_info.bin`), `00000001_fuzzer_initialize.bin`,
   `0000000N_fuzzer_import_block.bin`;
-* the model's answers `0000000N_target_state_root.bin` / `_target_error.bin` (GP v0.8.0's), so
+* the model's answers `0000000N_target_state_root.bin` / `_target_error.bin` (GP v0.8.1's), so
   `jam-lean-target session DIR` and `scripts/drive.py DIR` compare any target against the model;
 * `signatures.txt`: every signature of every block (`ed KEY MSG SIG` / `bs KEY CTX MSG SIG`), for
   `JamCryptoTest/generator verify` (ed25519-dalek and ark-vrf);
@@ -43,10 +44,10 @@ def encodeInitialize (h : Header) (kvs : RawState) : List UInt8 :=
 
 def encodeImport (b : Block) : List UInt8 := 3 :: b.encode
 
-/-- The fuzzer's PeerInfo: fuzz v1, features ancestry and fork, JAM 0.8.0. -/
+/-- The fuzzer's PeerInfo: fuzz v1, features ancestry and fork, JAM 0.8.1. -/
 def fuzzerPeerInfo : List UInt8 :=
   0 :: ({ fuzzVersion := 1, features := featureAncestry ||| featureFork,
-          jamVersion := { major := 0, minor := 8, patch := 0 },
+          jamVersion := { major := 0, minor := 8, patch := 1 },
           appVersion := { major := 0, minor := 1, patch := 0 }, appName := "jam-lean-craft" } : PeerInfo).encode
 
 def pad8 (n : Nat) : String := let s := toString n; String.ofList (List.replicate (8 - s.length) '0') ++ s
@@ -126,10 +127,14 @@ def craftSession (s0 : Session) (genesis : Header) (σ0 : State) (specs : List B
 def hexDigit (c : Char) : Nat :=
   if c.isDigit then c.toNat - '0'.toNat else c.toLower.toNat - 'a'.toNat + 10
 
-/-- The genesis header and state of an `Initialize` message. -/
+/-- The genesis header and state of an `Initialize` message of the fuzzer's published 0.8.0
+    sessions, the state converted to GP v0.8.1 form (`Upgrade.upgradeKvs`). -/
 def readInitialize (p : Params) (path : System.FilePath) : IO (Header × RawState) := do
   match Decoder.run (Request.decode p) (← IO.FS.readBinFile path) with
-  | .ok (.initialize h kvs _) => return (h, kvs)
+  | .ok (.initialize h kvs _) =>
+    match Upgrade.upgradeKvs kvs with
+    | .ok kvs' => return (h, kvs')
+    | .error e => throw (IO.userError s!"{path}: {e}")
   | .ok _ => throw (IO.userError s!"{path}: not an Initialize message")
   | .error e => throw (IO.userError s!"{path}: {e}")
 

@@ -3,18 +3,20 @@ import JamCrypto.DevKeys
 import JamTarget.Session
 
 /-!
-# Crafting valid blocks (GP v0.8.0)
+# Crafting valid blocks (GP v0.8.1)
 
 Given a state σ, the parent header and a description of the extrinsic, `craftBlock` builds a block
-that GP v0.8.0 accepts, signed with the JIP-5 development keys (`JamCrypto.DevKeys`):
+that GP v0.8.1 accepts, signed with the JIP-5 development keys (`JamCrypto.DevKeys`):
 
 * H_P = ℋ(parent), H_R = M_σ(σ), H_X = the extrinsic hash (GP eq. `extrinsichash`);
 * H_E and H_W as Safrole gives them for the slot, H_O = [] (no disputes);
 * the author: in fallback mode the slot's key γ_S'[H_T mod 𝖤]; in ticket mode the validator whose
   VRF output for the slot's ticket context equals the ticket's identifier; H_I its index in κ';
 * H_V ∈ 𝔹̄_{H_A}⟨X_E ⌢ Y(H_S)⟩⟨[]⟩, then H_S ∈ 𝔹̄_{H_A}⟨X_F ⌢ η'_3⟩⟨ℰ_U(H)⟩ (or the ticket
-  context) — Y(H_S) depends only on the key and the context, so H_V is signed first;
-* assurances: a_s over X_A ⌢ ℋ(ℰ(H_P, a_f)) by κ[a_v]'s Ed25519 key;
+  context) — Y(H_S) depends only on the key and the context, so H_V is signed first. The
+  signatures are the Thin VRF of GP v0.8.1 (VRF spec Draft 35, its vectors' reading `rd`, the one
+  the target uses; 96 octets O ⌢ R ⌢ s, graypaper#593);
+* assurances (no anchor, GP #562): a_s over X_A ⌢ ℋ(ℰ(H_P, a_f)) by κ[a_v]'s Ed25519 key;
 * guarantees: each credential over X_G ⌢ ℋ(ℰ(r)) by κ'[v] (or λ', as the caller chooses the
   indices; the crafter only signs).
 
@@ -25,6 +27,10 @@ jam-lean's Υ on the result and re-verifies every signature with the `JamCrypto`
 namespace JamTarget.Craft
 
 open JAM JamCrypto
+
+/-- The reading of the VRF spec's Draft 35 the crafter signs and checks with (the target's, see
+    `sessionCrypto`). -/
+def rd : Reading := .vectors
 
 /-- What the caller chooses for one block. -/
 structure BlockSpec where
@@ -86,17 +92,17 @@ def craftBlock (p : Params) (c : Crypto) (keys : List DevKeys.DevKey) (parent : 
     | .tickets ts =>
       let some tk := ts[slot % p.epochLen]? | throw "no ticket for the slot"
       let ctx := ticketContext eta3 tk.attempt
-      match keys.find? (fun k => Bandersnatch.ietfOutput k.bsSecret ctx == some tk.id.toList) with
+      match keys.find? (fun k => Bandersnatch.Thin.signOutput k.bsSecret ctx rd == some tk.id.toList) with
       | some k => pure (k, ctx)
       | none => throw "the slot's ticket belongs to no development key"
   let some authorIndex := saf'.active.findIdx? (·.bs == author.bs)
     | throw "the author is not in κ'"
-  let some yS := Bandersnatch.ietfOutput author.bsSecret sealCtx | throw "hash-to-curve failed"
-  let some vrfSig := Bandersnatch.ietfSign author.bsSecret (Xentropy ++ yS) [] | throw "hash-to-curve failed"
+  let some yS := Bandersnatch.Thin.signOutput author.bsSecret sealCtx rd | throw "hash-to-curve failed"
+  let some vrfSig := Bandersnatch.Thin.sign author.bsSecret (Xentropy ++ yS) [] rd | throw "hash-to-curve failed"
   -- The extrinsic.
   let assurances ← spec.assurances.mapM fun (v, bits) => do
     let k ← byEd keys (σ.active.getD v ValidatorKey.null).ed
-    return ({ anchor := ba parentHash, bitfield := bits, assurer := v,
+    return ({ bitfield := bits, assurer := v,
               signature := ba (Ed25519.sign k.edSeed (assuranceMessage (ba parentHash) bits)) } : Assurance)
   let guarantees ← spec.guarantees.mapM fun (r, t, who) =>
     -- κ' for guarantees of the current rotation, λ'... the caller picks indices of κ'.
@@ -109,7 +115,7 @@ def craftBlock (p : Params) (c : Crypto) (keys : List DevKeys.DevKey) (parent : 
     { parent := ba parentHash, priorStateRoot := ba σ.root, extrinsicHash := ba X.hash, slot,
       epochMark := sOut.epochMark, winnersMark := sOut.ticketsMark, offendersMark := [],
       authorIndex, vrfSig := ba vrfSig, sealSig := ByteArray.empty }
-  let some sealSig := Bandersnatch.ietfSign author.bsSecret sealCtx H0.encodeUnsigned
+  let some sealSig := Bandersnatch.Thin.sign author.bsSecret sealCtx H0.encodeUnsigned rd
     | throw "hash-to-curve failed"
   return { header := { H0 with sealSig := ba sealSig }, extrinsic := X }
 
@@ -130,12 +136,12 @@ def signatures (p : Params) (c : Crypto) (σ : State) (b : Block) : Except Strin
   let sealCtx := match saf'.sealKeys with
     | .keys _ => Xfallback ++ eta3
     | .tickets ts => ticketContext eta3 ((ts[H.slot % p.epochLen]?.map (·.attempt)).getD 0)
-  let yS := Bandersnatch.vrfOutput H.sealSig.toList
+  let yS := Bandersnatch.Thin.vrfOutput H.sealSig.toList
   let mut lines := [
     (s!"bs {h author} {h sealCtx} {h H.encodeUnsigned} {h H.sealSig.toList}",
-      Bandersnatch.ietfVerify author sealCtx H.encodeUnsigned H.sealSig.toList),
+      Bandersnatch.Thin.verify author sealCtx H.encodeUnsigned H.sealSig.toList rd),
     (s!"bs {h author} {h (Xentropy ++ yS)} - {h H.vrfSig.toList}",
-      Bandersnatch.ietfVerify author (Xentropy ++ yS) [] H.vrfSig.toList)]
+      Bandersnatch.Thin.verify author (Xentropy ++ yS) [] H.vrfSig.toList rd)]
   for a in b.extrinsic.assurances do
     let k := (σ.active.getD a.assurer ValidatorKey.null).ed
     let m := assuranceMessage H.parent a.bitfield
