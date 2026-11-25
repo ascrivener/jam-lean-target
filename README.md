@@ -2,7 +2,7 @@
 
 The [jam-lean](https://github.com/ascrivener/jam-lean) model of JAM (Gray Paper v0.8.0) as a
 target of the JAM conformance fuzzer ([jam-fuzzing](https://github.com/jam-conformance/jam-fuzzing),
-fuzzer protocol v1). It uses only jam-lean's `PVM` and `JAM` libraries (pinned commit in
+fuzzer protocol v1). It uses only jam-lean's `PVM`, `JAM` and `JamCrypto` libraries (pinned commit in
 `lakefile.lean`), toolchain Lean v4.36.0-rc1, core and Std only.
 
 ```

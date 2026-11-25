@@ -9,29 +9,18 @@ open Lake DSL
 * `lake exe jam-lean-target session DIR`      replays a recorded fuzzer session (minifuzz format).
 * `lake exe jam-lean-target trace DIR …`      imports block-import traces and compares post-states.
 
-Only the `PVM` and `JAM` libraries of jam-lean are used, never `Services`. -/
+Only the `PVM`, `JAM` and `JamCrypto` libraries of jam-lean are used, never `Services`. -/
 
 package «jam-lean-target» where
   leanOptions := #[⟨`autoImplicit, false⟩]
 
-require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "8334a1048f95b81c1253530448a92139786dab4f"
+require «jam-lean» from git "https://github.com/ascrivener/jam-lean" @ "5055102c3780184f685dc2adb8387362ce08bd97"
 
 lean_lib JamTarget
 
 @[default_target]
 lean_exe «jam-lean-target» where
   root := `Main
-
-/-- Cryptography in plain Lean (Ed25519, Bandersnatch VRFs, the ring root and ring VRF). -/
-lean_lib JamCrypto
-
-/-- Ring root and ring VRF vectors: `lake exe ringtest [VECTOR-FILES]`. -/
-lean_exe ringtest where
-  root := `RingTest
-
-/-- Ed25519 and Bandersnatch IETF VRF vectors (verification and signing): `lake exe cryptotest [DIR]`. -/
-lean_exe cryptotest where
-  root := `JamCryptoTest
 
 /-- The Lean side of the PVM differential harness (jam-lean's Ψ on jamtestvectors-format cases):
     `lake exe pvmrun check vectors/pvm`, `lake exe pvmrun run FILE|DIR…`. -/

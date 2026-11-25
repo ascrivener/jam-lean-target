@@ -28,7 +28,7 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   differs) in repos; report them to Adam. Outward-facing actions (issues, posts, contacting people,
   settings) are Adam's call.
 - Lean rules: core+Std only, no sorry / partial def / implemented_by / native_decide / bv_decide /
-  FFI, standard axioms only (scripts/check-forbidden.sh). The target imports only jam-lean's PVM and JAM.
+  FFI, standard axioms only (scripts/check-forbidden.sh). The target imports only jam-lean's PVM, JAM and JamCrypto (2026-11-25: JamCrypto and the state decoder moved into jam-lean, #247 and #249).
 - Git: PRs against main, squash-merge on green; never push to main.
 - Keep the model an executable Gray Paper, not a node (no networking/authoring in Lean; networking
   tooling lives in Python scripts and CI).
@@ -39,7 +39,10 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 - Docker image: published by .github/workflows/image.yml to **ghcr.io/ascrivener/jam-lean-target**
   (`latest` + short SHA on main, `v*` tags), public. The workflow runs the image the way jam-fuzzing's
   target.py does and replays the forks session (97/97) and vectors/refine (24/24) before pushing.
-- Crypto: JamCrypto/ (Ed25519, Bandersnatch IETF VRF, ring root, Ring VRF, signing, JIP-5 dev keys).
+- Crypto: jam-lean's `JamCrypto` library (Ed25519, Bandersnatch IETF VRF, ring root, Ring VRF,
+  signing, JIP-5 dev keys; its vectors run in jam-lean's CI, notes in jam-lean docs/jamcrypto.md).
+  σ from Initialize key-values: jam-lean's `JAM.StateDecode`. The ring SRS comes from jam-lean
+  (`JamCryptoTest/data/`; `JAM_LEAN_SRS` overrides it).
   GP v0.8.1's Bandersnatch crypto (GP #550: Thin VRF, the VRF spec's Draft 35 Pedersen and ring
   VRF) sits alongside it and is selected by `JamCrypto.GpVersion` / `--gp 0.8.1` / `JAM_GP`. The
   default is 0.8.0 until the jam-lean pin moves to gp-v0.8.1 (docs/crypto-notes.md, docs/gaps.md

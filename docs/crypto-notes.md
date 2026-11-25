@@ -1,5 +1,9 @@
 # Cryptography notes
 
+The code and vectors moved to jam-lean on 2026-11-25 (`JamCrypto`, `JamCryptoTest/`; its notes are
+jam-lean `docs/jamcrypto.md`). File paths below refer to jam-lean; ring vectors are under
+`JamCryptoTest/ring/` there. These notes stay as the target's record of the decisions.
+
 Points where the GP v0.8.0 leaves the cryptography to its references, and where the model and the
 references disagree. One section per point.
 
