@@ -63,9 +63,9 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 
 ## Open items
 - Storage-key stage 2 landed (jam-lean #243, #247; pin bumped 2026-11-25): every trace state
-  decodes. Replay of the 89 published traces: aggregate counts in docs/gaps.md item 2. Open: 3 steps
-  whose post-state differs in one 8-octet service storage value (not F2, not GP #558; under
-  investigation), and the ancestry gap (item 3) for traces without genesis.bin.
+  decodes. Replay of the 89 published traces: aggregate counts in docs/gaps.md item 2. The 3 steps
+  whose post-state differs come from `bless` by a non-manager: v0.8.0 (GP #519) says HUH, the traces
+  OK (pre-#519). Open: the ancestry gap (item 3) for traces without genesis.bin.
 - jam-lean (from its archived parent): add `proofs` to main's required checks (Adam, settings);
   pick the next proof step (T2 option B; check whether step 10, the vendored-blob check, was done by
   the Witness session's child on 2026-11-20).
