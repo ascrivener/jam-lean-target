@@ -46,6 +46,16 @@ of the 96-octet signature gamma ⌢ proof_r ⌢ proof_s (our assumed layout, see
 It also checks that mutations are rejected (bit flips in O, R and s, s + r, another ad, input
 or key, a 95-octet signature); those verdicts are ours, not from a reference.
 
+## `bandersnatch_pedersen.txt`
+
+The Pedersen VRF of GP v0.8.1's ring VRF (`JamCrypto.Bandersnatch.Pedersen`): the 7 vectors of
+Draft 35 (same commit, `bandersnatch_sha-512_ell2_pedersen.json`),
+`tag sk pk alpha ad h gamma beta blinding pk_com r ok s sb`. `cryptotest` checks the input point,
+the blinding factor, proving (byte for byte), verification, the output hash, and that another ad
+or s is rejected. It also checks that Draft 35's blinding base, ring accumulator and ring padding
+points are hash_to_curve of "pedersen-blinding", "ring-accumulator" and "ring-padding". The ring
+vectors of Draft 35 are in `tests/vectors/ring-d35.txt` (`ringtest`).
+
 ## `signing.txt`
 
 Signing (`JamCrypto.Ed25519Sign`, `JamCrypto.BandersnatchSign`). Lean's signature must equal the

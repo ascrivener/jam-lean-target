@@ -46,9 +46,23 @@ def loadSrs : IO JamCrypto.Ring.Srs := do
   let path := (← IO.getEnv "JAM_LEAN_SRS").getD "data/bls12-381-srs-2-11-uncompressed-zcash.bin"
   return JamCrypto.Ring.withSelectors (← JamCrypto.Ring.Srs.load path)
 
+/-- The `--gp VERSION` option, if given (it takes precedence over `JAM_GP`). -/
+initialize gpOption : IO.Ref (Option String) ← IO.mkRef none
+
+/-- The Gray Paper version of the crypto: `--gp`, else `JAM_GP`, else 0.8.0. 0.8.1 switches only
+    the Bandersnatch VRFs (GP #550); the state transition stays the pinned jam-lean model's. -/
+def getGp : IO JamCrypto.GpVersion := do
+  let v ← match ← gpOption.get with
+    | some v => pure v
+    | none => pure ((← IO.getEnv "JAM_GP").getD "0.8.0")
+  match v with
+  | "0.8.0" => return .v080
+  | "0.8.1" => return .v081
+  | _ => throw (IO.userError s!"the GP version (--gp / JAM_GP) must be 0.8.0 or 0.8.1, not {v}")
+
 /-- A fresh session with the full crypto. -/
 def newSession (p : Params) : IO Session := do
-  return { params := p, crypto := sessionCrypto (← loadSrs) p }
+  return { params := p, crypto := sessionCrypto (← loadSrs) p (← getGp) }
 
 def getParams : IO Params := do
   let spec := (← IO.getEnv "JAM_FUZZ_SPEC").getD "tiny"
@@ -200,6 +214,10 @@ def replayTrace (dir : System.FilePath) : IO (Nat × Nat × List String) := do
   return (files.length, good, notes)
 
 def main (args : List String) : IO UInt32 := do
+  let args ← match args with
+    | "--gp" :: v :: rest => gpOption.set (some v); pure rest
+    | _ => pure args
+  discard getGp
   match args with
   | ["serve"] | [] => serve
   | "session" :: dirs =>
@@ -243,5 +261,5 @@ def main (args : List String) : IO UInt32 := do
     IO.println s!"service {Probe.probeService} last accumulation slot: {(c.post.accounts.get? Probe.probeService).map (·.lastAcc)}"
     return 0
   | _ =>
-    IO.eprintln "usage: jam-lean-target [serve | session DIR … | trace DIR … | craft SPEC OUTDIR | probe KIND INIT OUTDIR]"
+    IO.eprintln "usage: jam-lean-target [--gp 0.8.0|0.8.1] [serve | session DIR … | trace DIR … | craft SPEC OUTDIR | probe KIND INIT OUTDIR]"
     return 2

@@ -19,7 +19,7 @@ way. "Effect" is from the PR title and diff where checked, otherwise from the ti
 | #539 | 2026-08-10 | Junior services | new protocol feature † | |
 | #530 | 2026-08-19 | Hostcall for inner PVM module compilation | refine host calls † | |
 | #542 | 2026-08-19 | Preimage request lengths below state-key discriminators | validity † | |
-| #550 | 2026-08-24 | Bandersnatch: new VRF spec, Thin VRF | seals, tickets | **not followed**: fuzzer blocks verify under ark-vrf 0.1.0 IETF VRF |
+| #550 | 2026-08-24 | Bandersnatch: new VRF spec (Draft 35), Thin VRF; also changes the ring VRF and ring root | seals, tickets, entropy, γ_Z | **not followed**: fuzzer blocks verify under ark-vrf 0.1.0 IETF VRF. Implemented behind `--gp 0.8.1` (PRs #30, #31; docs/crypto-notes.md) |
 | #554 | 2026-08-26 | Mask the third register of three-register instructions | PVM semantics † | |
 | #559 | 2026-10-21 | Code blob and jump-table size limits; cmov gas | PVM † | |
 | #560 | 2026-10-31 | Header extrinsic-hash credential encoding | header validity † | |

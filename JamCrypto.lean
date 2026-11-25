@@ -7,4 +7,5 @@ import JamCrypto.Ring
 import JamCrypto.Ed25519Sign
 import JamCrypto.BandersnatchSign
 import JamCrypto.ThinVrf
+import JamCrypto.PedersenVrf
 import JamCrypto.DevKeys

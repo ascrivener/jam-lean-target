@@ -146,6 +146,38 @@ def main (args : List String) : IO UInt32 := do
       check s!"thin {tag} 95 octets rejected" (!T pk alpha ad (sig.take 95)) failures
       check s!"thin {tag} IETF verifier rejects it" (!Bandersnatch.ietfVerify pk alpha ad sig) failures
     | _ => if line != "" then check s!"thin malformed line: {line}" false failures
+  -- Bandersnatch Pedersen VRF (GP v0.8.1 ring VRF component): the spec's Draft 35 vectors,
+  -- tag sk pk alpha ad h gamma beta blinding pk_com r ok s sb.
+  for line in (← IO.FS.lines s!"{dir}/bandersnatch_pedersen.txt") do
+    match line.splitOn " " with
+    | [tag, sk, _pk, alpha, ad, h, gamma, beta, bl, com, pr, pok, ps, psb] =>
+      let x := leToNat (unhex sk)
+      let (alpha, ad) := (unhex alpha, unhex ad)
+      let proof := unhex com ++ unhex pr ++ unhex pok ++ unhex ps ++ unhex psb
+      match Bandersnatch.Thin.hashToCurve alpha, Bandersnatch.decode (unhex gamma),
+          Bandersnatch.Pedersen.Proof.decode proof with
+      | some I, some O, some p =>
+        check s!"pedersen {tag} h" (Bandersnatch.encode I == unhex h) failures
+        let (mine, b) := Bandersnatch.Pedersen.prove x I ad
+        check s!"pedersen {tag} blinding" (natToLE 32 b == unhex bl) failures
+        check s!"pedersen {tag} prove" (mine.encode == proof) failures
+        check s!"pedersen {tag} verify" (Bandersnatch.Pedersen.verify I O ad p) failures
+        check s!"pedersen {tag} beta" (Bandersnatch.Thin.output O == unhex beta) failures
+        check s!"pedersen {tag} other ad rejected" (!Bandersnatch.Pedersen.verify I O (ad ++ [0]) p) failures
+        check s!"pedersen {tag} other s rejected"
+          (!Bandersnatch.Pedersen.verify I O ad { p with s := (p.s + 1) % Bandersnatch.r }) failures
+      | _, _, _ => check s!"pedersen {tag} decodes" false failures
+    | _ => if line != "" then check s!"pedersen malformed line: {line}" false failures
+  -- Draft 35's fixed points are hash_to_curve of their names
+  let h2c (s : String) := (Bandersnatch.Thin.hashToCurve s.toUTF8.toList).map Bandersnatch.curve.toAffine
+  check "d35 blinding base = h2c(pedersen-blinding)"
+    (h2c "pedersen-blinding" == some (Bandersnatch.curve.toAffine Bandersnatch.Pedersen.blindingBase)) failures
+  check "d35 accumulator = h2c(ring-accumulator)"
+    (h2c "ring-accumulator" == some (Ring.Curve.accumulatorBase081.x, Ring.Curve.accumulatorBase081.y)) failures
+  check "d35 padding = h2c(ring-padding)"
+    (h2c "ring-padding" == some (Ring.Curve.padding081.x, Ring.Curve.padding081.y)) failures
+  check "d35 blinding base (ring copy)"
+    (h2c "pedersen-blinding" == some (Ring.Curve.blindingBase081.x, Ring.Curve.blindingBase081.y)) failures
   -- JIP-5 development keys = the genesis validators of the fuzzer's 0.8.0 sessions
   -- (jam-fuzzing fuzz-proto/examples/0.8.0/no_forks, Initialize, epoch mark).
   let genesis := [

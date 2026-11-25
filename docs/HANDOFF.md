@@ -40,6 +40,10 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   (`latest` + short SHA on main, `v*` tags), public. The workflow runs the image the way jam-fuzzing's
   target.py does and replays the forks session (97/97) and vectors/refine (24/24) before pushing.
 - Crypto: JamCrypto/ (Ed25519, Bandersnatch IETF VRF, ring root, Ring VRF, signing, JIP-5 dev keys).
+  GP v0.8.1's Bandersnatch crypto (GP #550: Thin VRF, the VRF spec's Draft 35 Pedersen and ring
+  VRF) sits alongside it and is selected by `JamCrypto.GpVersion` / `--gp 0.8.1` / `JAM_GP`. The
+  default is 0.8.0 until the jam-lean pin moves to gp-v0.8.1 (docs/crypto-notes.md; open: the
+  signature layout assumption and the tiny ring domain, docs/gaps.md item 6).
 - PVM harness: pvmrun, tools/pvm-ref (PolkaVM 0.38.1), vectors/pvm (1,408 vectors).
 - Block crafter and probes: vectors/blocks; refine vectors: vectors/refine.
 - Shadow: scripts/shadow.py and docs/shadow.md; polkajam feed workflow (.github/workflows/polkajam-feed.yml)

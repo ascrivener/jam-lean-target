@@ -28,6 +28,26 @@ namespace JamCrypto.Ring
 
 open JamCrypto.Fr
 
+/-- The constants a ring depends on, which differ between the Gray Paper versions: the Pedersen
+    blinding base H, the padding point, the accumulator seed of the ring proof and the label its
+    Fiat–Shamir transcript starts with (the suite id). -/
+structure Consts where
+  blinding : Curve.Aff
+  padding : Curve.Aff
+  seed : Curve.Aff
+  label : List UInt8
+
+/-- GP v0.8.0 (ark-vrf 0.1.0). -/
+def Consts.v080 : Consts :=
+  { blinding := Curve.blindingBase, padding := Curve.padding, seed := Curve.accumulatorBase
+    label := "Bandersnatch_SHA-512_ELL2".toUTF8.toList }
+
+/-- GP v0.8.1 (VRF spec Draft 35; the transcript label is Draft 35's suite id, as its ring
+    vectors require). -/
+def Consts.v081 : Consts :=
+  { blinding := Curve.blindingBase081, padding := Curve.padding081, seed := Curve.accumulatorBase081
+    label := "Bandersnatch-SHA512-ELL2-v1".toUTF8.toList }
+
 /-- Bits of a Bandersnatch scalar. -/
 def scalarBits : Nat := 253
 
@@ -95,9 +115,9 @@ def commitColumn (srs : Srs) (evals : Array Nat) : List UInt8 :=
   G1.compress (G1.msm srs.g1 (interpolate evals)).toAff
 
 /-- H, 2H, …, 2^252·H. -/
-def blindingMultiples : Array Curve.Aff := Id.run do
+def blindingMultiples (k : Consts := .v080) : Array Curve.Aff := Id.run do
   let mut ps : Array Curve.Ext := Array.mkEmpty scalarBits
-  let mut h := Curve.blindingBase.toExt
+  let mut h := k.blinding.toExt
   for _ in [0:scalarBits] do
     ps := ps.push h
     h := Curve.dblE h
@@ -105,17 +125,17 @@ def blindingMultiples : Array Curve.Aff := Id.run do
 
 /-- The ring's points column for these keys: keys (padding for undecodable ones), padding up to
     the keyset size, then the blinding multiples. Keys beyond the keyset size are dropped. -/
-def pointsColumn (dom : Nat) (keys : List Curve.Aff) : Array Curve.Aff :=
+def pointsColumn (dom : Nat) (keys : List Curve.Aff) (k : Consts := .v080) : Array Curve.Aff :=
   let ks := keys.take (keysetSize dom)
-  ks.toArray ++ Array.replicate (keysetSize dom - ks.length) Curve.padding ++ blindingMultiples
+  ks.toArray ++ Array.replicate (keysetSize dom - ks.length) k.padding ++ blindingMultiples k
 
 /-- The selector column for domain size N. -/
 def selectorColumn (dom : Nat) : Array Nat :=
   Array.replicate (keysetSize dom) 1 ++ Array.replicate (dom - keysetSize dom) 0
 
 /-- The ring commitment of a sequence of curve points, for domain size N. -/
-def commitPoints (srs : Srs) (dom : Nat) (keys : List Curve.Aff) : List UInt8 :=
-  let pts := pointsColumn dom keys
+def commitPoints (srs : Srs) (dom : Nat) (keys : List Curve.Aff) (k : Consts := .v080) : List UInt8 :=
+  let pts := pointsColumn dom keys k
   let zeros := Array.replicate (dom - pts.size) 0
   let xs := pts.map (·.x) ++ zeros
   let ys := pts.map (·.y) ++ zeros
@@ -128,11 +148,12 @@ def commitPoints (srs : Srs) (dom : Nat) (keys : List Curve.Aff) : List UInt8 :=
     rings of up to `ringSize` keys: JAM uses the chain's validator count V (6 tiny, 1023 full)
     whatever |**k**| is (jam-test-vectors 0.8.0 `safrole/full/enact-epoch-change-with-set-resize`).
     Keys with no curve point in the prime-order subgroup stand for the padding point. Empty when
-    the SRS is too short for the ring (never for JAM's rings). -/
-def root (srs : Srs) (ringSize : Nat) (keys : List (List UInt8)) : List UInt8 :=
+    the SRS is too short for the ring (never for JAM's rings). `k` selects the GP version's
+    constants (default v0.8.0). -/
+def root (srs : Srs) (ringSize : Nat) (keys : List (List UInt8)) (k : Consts := .v080) : List UInt8 :=
   let dom := domainSize ringSize
   if srs.g1.size < dom then [] else
-  commitPoints srs dom (keys.map fun k => (Curve.decode k).getD Curve.padding)
+  commitPoints srs dom (keys.map fun key => (Curve.decode key).getD k.padding) k
 
 /-- The SRS with the selector commitments of rings of these sizes precomputed (default: the tiny
     and full specs' 6 and 1023 validators). The selector column does not depend on the keys. -/

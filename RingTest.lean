@@ -4,8 +4,9 @@ import JamCrypto.Ring
     file is `root RINGSIZE ROOT KEY…` (hex; a key may be any octet string),
     `proof RINGSIZE ROOT CTX MSG SIG VALID OUT` (MSG `-` for empty; VALID 1 or 0; OUT the expected
     Y for valid ones), `ticket RINGSIZE ROOT ETA2 ATTEMPT SIG` (the ticket context is built here)
-    or a `#` comment. Exits 1 on any
-    mismatch. Vector sources: `tests/gen/` (jam-test-vectors and jam-fuzzing states; ark-vrf 0.1.0). -/
+    or a `#` comment; `root081` and `proof081` are the same for GP v0.8.1 (VRF spec Draft 35). Exits 1 on any
+    mismatch. Vector sources: `tests/gen/` (jam-test-vectors and jam-fuzzing states; ark-vrf 0.1.0); `ring-d35.txt`
+    from the VRF spec Draft 35 (GP v0.8.1). -/
 
 open JamCrypto
 
@@ -38,32 +39,43 @@ def main (args : List String) : IO UInt32 := do
   IO.println s!"self-checks: shake128 {shakeOk}, frobenius {frobOk}, bilinearity {pairOk}"
   let mut bad := if shakeOk && frobOk && pairOk then 0 else 1
   let files := if args.isEmpty then ["tests/vectors/ring-root-jam.txt", "tests/vectors/ring-root-ark.txt", "tests/vectors/ring-proof-ark.txt",
-    "tests/vectors/ring-proof-jam.txt", "tests/vectors/ring-ticket-jam.txt"] else args
+    "tests/vectors/ring-proof-jam.txt", "tests/vectors/ring-ticket-jam.txt", "tests/vectors/ring-d35.txt"] else args
   let mut n := 0
   for f in files do
     for line in (← IO.FS.lines f) do
       match (line.splitOn " ").filter (· ≠ "") with
-      | "root" :: size :: want :: keys =>
+      | kind :: size :: want :: keys =>
+      if kind == "root" || kind == "root081" then
         let s ← IO.monoMsNow
-        let got := Ring.root srs size.toNat! (keys.map unhex)
+        let k := if kind == "root081" then Ring.Consts.v081 else Ring.Consts.v080
+        let got := Ring.root srs size.toNat! (keys.map unhex) k
         let e ← IO.monoMsNow
         n := n + 1
         if got != unhex want then
           bad := bad + 1
           IO.println s!"FAIL root (ring size {size}, {keys.length} keys): got {hex got} want {want}"
-        else IO.println s!"ok root (ring size {size}, {keys.length} keys, {e - s} ms)"
-      | "proof" :: size :: root :: ctx :: msg :: sig :: valid :: out :: _ =>
+        else IO.println s!"ok {kind} (ring size {size}, {keys.length} keys, {e - s} ms)"
+      else if kind == "proof" || kind == "proof081" then
+        let (root, ctx, msg, sig, valid, out) := match keys with
+          | [ctx, msg, sig, valid, out] => (want, ctx, msg, sig, valid, out)
+          | _ => (want, "", "", "", "0", "")
+        let v081 := kind == "proof081"
+        let ctx := if ctx == "-" then [] else unhex ctx
         let s ← IO.monoMsNow
-        let ok := Ring.verify srs size.toNat! (unhex root) (unhex ctx) (if msg == "-" then [] else unhex msg) (unhex sig)
+        let ok := (if v081 then Ring.verify081 else Ring.verify) srs size.toNat! (unhex root) ctx
+          (if msg == "-" then [] else unhex msg) (unhex sig)
         let e ← IO.monoMsNow
         n := n + 1
         let want := valid == "1"
-        let outOk := !want || hex (Ring.output (unhex sig)) == out
+        let outOk := !want || hex ((if v081 then Ring.output081 else Ring.output) (unhex sig)) == out
         if ok != want || !outOk then
           bad := bad + 1
           IO.println s!"FAIL proof (ring size {size}): verify {ok} want {want}, output ok {outOk}"
-        else IO.println s!"ok proof (ring size {size}, valid {want}, {e - s} ms)"
-      | "ticket" :: size :: root :: eta2 :: attempt :: sig :: _ =>
+        else IO.println s!"ok {kind} (ring size {size}, valid {want}, {e - s} ms)"
+      else if kind == "ticket" then
+        let (root, eta2, attempt, sig) := match keys with
+          | eta2 :: attempt :: sig :: _ => (want, eta2, attempt, sig)
+          | _ => (want, "", "0", "")
         -- the ticket context of GP §6.7: X_T ⌢ η'_2 ⌢ attempt, X_T = the octets "jam_ticket_seal"
         -- (the GP writes $jam_ticket_seal; the $ is notation, not an octet)
         let ctx (xt : String) := xt.toUTF8.toList ++ unhex eta2 ++ [UInt8.ofNat attempt.toNat!]
@@ -75,6 +87,7 @@ def main (args : List String) : IO UInt32 := do
         else
           bad := bad + 1
           IO.println s!"FAIL ticket context (ring size {size}): jam_ticket_seal {good}, $jam_ticket_seal {dollar}"
+      else pure ()
       | _ => pure ()
   IO.println s!"{n - bad}/{n} passed"
   return if bad == 0 then 0 else 1
