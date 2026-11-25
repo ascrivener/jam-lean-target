@@ -1,9 +1,10 @@
 name: polkajam feed
 # Manual only (Actions → "polkajam feed" → Run workflow); normal CI does not run it.
 # Downloads a PolkaJam release from paritytech/polkajam-releases, records what its binaries can
-# export (--help of every executable), runs polkajam-testnet and records its best chain over JIP-2
-# (slot, header hash, posterior state root), and uploads everything as the artifact
-# `polkajam-feed`. See docs/shadow.md.
+# export (--help of every executable, the dev chain spec), runs polkajam-testnet with JIP-3
+# telemetry going to jam-telemetry-dumper, records its best chain over JIP-2 (slot, header hash,
+# posterior state root), and uploads everything as the artifact `polkajam-feed`. See
+# docs/shadow.md.
 on:
   workflow_dispatch:
     inputs:
@@ -19,12 +20,21 @@ on:
       testnet_args:
         description: extra arguments for polkajam-testnet
         default: ''
+      work_items:
+        description: work items to submit to the Bootstrap service (jamt item) while the chain runs
+        default: '10'
+      service:
+        description: also create the shadow-probe service (tools/service) and send each work item to it ("true"/"false")
+        default: 'false'
+      peer:
+        description: JAM-NP node to fetch blocks from, [peer-id@]host:port; "auto" tries every node the testnet log names
+        default: auto
 permissions:
   contents: read
 jobs:
   feed:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
       OUT: ${{ github.workspace }}/feed
@@ -32,8 +42,22 @@ jobs:
       BLOCKS: ${{ inputs.blocks }}
       RPC: ${{ inputs.rpc }}
       TESTNET_ARGS: ${{ inputs.testnet_args }}
+      WORK_ITEMS: ${{ inputs.work_items }}
+      SERVICE: ${{ inputs.service }}
+      PEER: ${{ inputs.peer }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        with:
+          path: .lake
+          key: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: lake-${{ hashFiles('lean-toolchain', 'lake-manifest.json') }}-
+      - name: Build the target
+        run: lake build jam-lean-target
       - name: Download the release
         run: |
           mkdir -p "$OUT/help" pj
@@ -64,21 +88,70 @@ jobs:
             done
           done < "$OUT/executables.txt"
           grep -il -E 'export|dump|block|state' "$OUT"/help/*.txt | tee "$OUT/help-mentions-export.txt" || true
+          # Protocol identifiers compiled into the node (ALPN of JAM-NP).
+          pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)
+          (strings -n 6 "pj/$pj" | grep -E 'jamnp|jam-np|/builder' | sort -u | head -50 || true) > "$OUT/protocol-strings.txt"
+      - name: Dump the dev chain spec (genesis)
+        run: |
+          pj=$(grep -E '(^|/)polkajam$' "$OUT/executables.txt" | head -1)
+          (timeout 60 "pj/$pj" --chain dev dump-spec "$OUT/dev-spec.json" || true) 2>&1 | tee "$OUT/dump-spec.log"
+          # genesis.bin for scripts/shadow.py's dump feed: E(genesis header, genesis key-values)
+          python3 scripts/spec_genesis.py "$OUT/dev-spec.json" "$OUT/dump/genesis.bin" || true
       - name: Run the testnet and record its chain over JIP-2
         run: |
-          pip install -q websockets
+          # PolkaVM's Linux sandbox needs unprivileged userfaultfd and user namespaces.
+          sudo sysctl -w vm.unprivileged_userfaultfd=1 kernel.apparmor_restrict_unprivileged_userns=0
+          pip install -q websockets aioquic
           tn=$(grep -E '(^|/)polkajam-testnet$' "$OUT/executables.txt" | head -1)
+          td=$(grep -E '(^|/)jam-telemetry-dumper$' "$OUT/executables.txt" | head -1)
           [ -n "$tn" ] || { echo "no polkajam-testnet in the release"; exit 1; }
           mkdir -p run && cd run
+          if [ -n "$td" ]; then
+            "../pj/$td" --port 19900 > "$OUT/telemetry.log" 2>&1 &
+            echo $! > ../telemetry.pid; sleep 2
+            TESTNET_ARGS="--telemetry 127.0.0.1:19900 $TESTNET_ARGS"
+          fi
           "../pj/$tn" $TESTNET_ARGS > "$OUT/testnet.log" 2>&1 &
           echo $! > ../testnet.pid
-          sleep 20; (ss -ltnp || true) > "$OUT/listening.txt"
-          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" \
-            --timeout 2400 --out "$OUT/chain.json" | tee "$OUT/chain.log"
+          sleep 20; (ss -ltnup || true) > "$OUT/listening.txt"
+          if [ "$PEER" = auto ]; then
+            # "This node is <peer-id>@<ip>:<port>" for every node in the testnet log,
+            # each with its peer ID as the TLS server name and without.
+            PEER=$(grep -o 'This node is [^ ]*' "$OUT/testnet.log" | awk '{print $4}' | \
+              while read -r p; do echo "$p ${p#*@}"; done | tr '\n' ' ')
+          fi
+          # Every announced block, forks included (JAM-NP UP 0), fetched as it is announced.
+          python3 ../scripts/jamnp_listen.py --peer $PEER --genesis "$OUT/dump/genesis.bin" \
+            --out "$OUT/side" > "$OUT/listen.log" 2>&1 &
+          echo $! > ../listen.pid
+          # A workload so blocks carry guarantees, assurances and accumulation (scripts/polkajam_workload.sh);
+          # with service=true also the shadow-probe service's storage and preimage paths.
+          jamt="$PWD/../pj/$(grep -E '(^|/)jamt$' "$OUT/executables.txt" | head -1)"
+          blob=
+          if [ "$SERVICE" = true ]; then python3 ../tools/service/build.py "$OUT/shadow-probe.jam"; blob="$OUT/shadow-probe.jam"; fi
+          ../scripts/polkajam_workload.sh "$jamt" "$RPC" "$WORK_ITEMS" $blob > "$OUT/workload.log" 2>&1 &
+          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --blocks "$BLOCKS" --pid "$(cat ../testnet.pid)" \
+            --timeout 6000 --out "$OUT/chain.json" 2>&1 | tee "$OUT/chain.log"
+          [ "${PIPESTATUS[0]}" = 0 ] || exit 1
+          # Stop the listener; the fork blocks' roots over JIP-2, while the testnet still runs.
+          sleep 10; kill "$(cat ../listen.pid)" 2>/dev/null || true
+          mkdir -p "$OUT/side"
+          python3 ../scripts/polkajam_chain.py --rpc "$RPC" --roots-for "$OUT/side" 2>&1 | tee -a "$OUT/chain.log"
+          # The best chain's blocks over JAM-NP (CE 128), plus the fork blocks from the listener.
+          python3 ../scripts/jamnp_blocks.py --peer $PEER --genesis "$OUT/dump/genesis.bin" \
+            --chain "$OUT/chain.json" --out "$OUT/dump" --side "$OUT/side" 2>&1 | tee "$OUT/jamnp.log"
+          exit "${PIPESTATUS[0]}"
+      - name: Shadow the chain (scripts/shadow.py dump)
+        run: |
+          set +e
+          python3 scripts/shadow.py dump "$OUT/dump" --continue --known scripts/shadow-known.txt \
+            --out "$OUT/shadow" --target-log "$OUT/shadow-target.log" > "$OUT/shadow.log" 2>&1
+          # Results stay in the artifact (shadow.log), not in the job log.
+          echo "exit $?" >> "$OUT/shadow.log"
       - name: Collect what the testnet wrote
         if: always()
         run: |
-          kill "$(cat testnet.pid 2>/dev/null)" 2>/dev/null || true; sleep 3
+          kill "$(cat testnet.pid 2>/dev/null)" "$(cat telemetry.pid 2>/dev/null)" 2>/dev/null || true; sleep 3
           (find run -type f -printf '%s\t%p\n' 2>/dev/null | sort -k2 || true) > "$OUT/files.txt"
       - uses: actions/upload-artifact@v4
         if: always()
