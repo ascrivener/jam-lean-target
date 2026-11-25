@@ -1,7 +1,7 @@
 import Lake
 open Lake DSL
 
-/-! jam-lean-target: the jam-lean model (Gray Paper v0.8.0) as a target of the JAM conformance
+/-! jam-lean-target: the jam-lean model (Gray Paper v0.8.1) as a target of the JAM conformance
     fuzzer (jam-conformance/jam-fuzzing, fuzzer protocol v1).
 
 * `lake build`             builds the target executable `jam-lean-target`.
