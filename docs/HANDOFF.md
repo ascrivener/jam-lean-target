@@ -49,8 +49,8 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 
 ## Results so far (results per implementation are kept out of the repo)
 - 0.8.0 example sessions: forks 97/97; no_forks matches to slot 24, slot 25 is F2 (GP #533).
-- Live polkajam v0.8.0 testnet: 304/304 blocks (302 best chain + 2 side forks), with storage and
-  preimage solicit/provide/forget paths exercised by our service.
+- Live testnet shadowing (polkajam feed workflow, including side forks and our service's storage and
+  preimage paths): results reported to Adam, not recorded here.
 - JAM Toaster (`public-30`): genesis decodes under GP v0.8.0, roots match; blocks not yet checked
   (connecting to it as a peer is Adam's call).
 
