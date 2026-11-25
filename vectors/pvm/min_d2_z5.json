@@ -13,14 +13,9 @@
         "regs": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "pc": 0,
         "memory": [],
-        "gas": 9998
+        "gas": 10000
       }
     }
   ],
-  "block-gas-costs": [
-    {
-      "cost": 2,
-      "pc": 0
-    }
-  ]
+  "block-gas-costs": []
 }

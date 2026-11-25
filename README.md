@@ -27,7 +27,10 @@ binds the socket with socat, one process per fuzzer session.
 
 Published to `ghcr.io/ascrivener/jam-lean-target` (`latest` and the short commit SHA from `main`,
 plus `v*` release tags; linux/amd64). `latest` and the SHA tags from this change on are GP v0.8.1;
-`671f256` and earlier SHA tags are GP v0.8.0. The image is built and checked by `.github/workflows/image.yml`. It runs
+`671f256` and earlier SHA tags are GP v0.8.0. The image is built and checked by
+`.github/workflows/image.yml`. Until GP 0.8.1 fuzzer data exists that check is a smoke test of the
+plumbing (the refine vectors and a session the image's own crafter makes, replayed by the same
+model), not conformance evidence. It runs
 like any other fuzzer target, as any user, with the socket in the mounted data directory:
 
 ```

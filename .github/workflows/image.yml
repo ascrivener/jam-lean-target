@@ -1,10 +1,11 @@
 name: Image
 # Builds the target's Docker image, checks it runs the way jam-fuzzing runs any Docker target
 # (scripts/target.py: --user uid:gid, --init, data dir mounted at /tmp/jam_fuzz, socket
-# /tmp/jam_fuzz/fuzz.sock, JAM_FUZZ* variables) and answers GP v0.8.1 sessions as recorded (the
-# refine vectors, and a session the image's own crafter makes from the converted 0.8.0 genesis;
-# the recorded 0.8.0 fuzzer sessions are GP v0.8.0 data, suspended until 0.8.1 ones exist), then
-# pushes it to ghcr.io (main: latest + short SHA; v* tags: the tag). PRs touching the image
+# /tmp/jam_fuzz/fuzz.sock, JAM_FUZZ* variables) and answers GP v0.8.1 sessions as recorded: the
+# refine vectors, and a session the image's own crafter makes from the 0.8.0 genesis converted
+# with the test-only mapping. These are PLUMBING/SMOKE checks (model-made answers replayed by the
+# same model), not conformance evidence: that waits for GP 0.8.1 fuzzer data (the recorded 0.8.0
+# sessions are GP v0.8.0 data, suspended). Then it pushes it to ghcr.io (main: latest + short SHA; v* tags: the tag). PRs touching the image
 # build and check it without pushing. Separate from ci.yml so PR CI stays fast.
 on:
   push:
@@ -61,8 +62,9 @@ jobs:
             n=$(ls "$1" | grep -c '_fuzzer_.*\.bin$')
             [ "$last" = "$n/$n as recorded" ] || { echo "::error::$1: $last (expected $n/$n)"; docker logs jlt; exit 1; }
           }
-          # a GP v0.8.1 session made by the image's own crafter (crafted blocks on the converted
-          # 0.8.0 genesis, signed with the JIP-5 keys), then served through the socket
+          # smoke check: a GP v0.8.1 session made by the image's own crafter (crafted blocks on the
+          # converted 0.8.0 genesis, signed with the JIP-5 keys), then served through the socket by
+          # the same model; plumbing, not conformance evidence
           C="$RUNNER_TEMP/craft"; mkdir -p "$C"
           docker run --rm --platform linux/amd64 --user "$(id -u):$(id -g)" -v "$PWD:/w:ro" -v "$C:/out" -w /w \
             --entrypoint jam-lean-target jam-lean-target:ci craft tests/craft/epoch.txt /out/epoch
