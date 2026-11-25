@@ -36,6 +36,12 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 - Git: PRs against main, squash-merge on green; never push to main.
 - Keep the model an executable Gray Paper, not a node (no networking/authoring in Lean; networking
   tooling lives in Python scripts and CI).
+- Two repositories, kept separate (2026-11-25): jam-lean is the model (paper only), this repo is the
+  fuzzer plumbing; it pins jam-lean to one commit (`lakefile.lean`). **Pin-bump rule:** after any
+  jam-lean merge that touches `JAM/`, `PVM/` or `JamCrypto/`, open a PR here the same day that bumps
+  the pin; its merge rebuilds and pushes the image (`:latest` + short SHA). jam-lean merges that
+  touch only docs, proofs (`Services/`), tests or CI need no bump. Version tags (`:v0.8.1`) only for
+  deliberate releases. Docs-only pushes here do not rebuild the image (`image.yml` paths-ignore).
 
 ## Where things are
 - Target: Main.lean (`serve`, `session`, `trace`, `craft`, `probe`), JamTarget/ (wire codec, state
