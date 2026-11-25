@@ -77,11 +77,10 @@ gp-v0.8.1 branch. Only the crypto changes; the state transition is still the pin
 
 Choices the paper and the draft leave open:
 
-* **96-octet signature layout (assumption).** GP gives 𝔹̄ as 96-octet strings and reads Y from
-  the signature, but the draft encodes only the proof (R, s). We use O ⌢ R ⌢ s, the output point
-  first as in the v0.8.0 IETF signature and the ring proof (`Thin.thinEncode`/`thinDecode`). This
-  is pending Adam's confirmation. The planned check: once fuzzer blocks for 0.8.1 exist, only one
-  layout will verify.
+* **96-octet signature layout.** GP gives 𝔹̄ as 96-octet strings and reads Y from the signature,
+  but the draft encodes only the proof (R, s). We read it as O ⌢ R ⌢ s, the output point first as
+  in the v0.8.0 IETF signature and the ring proof (`Thin.thinEncode`/`thinDecode`); Adam,
+  2026-11-25. The planned check: once fuzzer blocks for 0.8.1 exist, only one layout will verify.
 * **Z_pad**: hash to curve uses a zero prefix of 48 octets, not RFC 9380's 128. Draft 35's own
   vectors require this, and Draft 36 states it explicitly.
 * **Ring transcript label**: §5 of the draft says the ring proof transcript starts with a
@@ -89,5 +88,7 @@ Choices the paper and the draft leave open:
   as the label, so we follow the vectors.
 * **Ring domain**: §5 of Draft 35 fixes the domain at 2048. The 181aba2 ring vectors themselves
   use domain 512; the spec's later commit 0b7422f regenerates them at 2048, and our root matches
-  that regeneration too. The v0.8.1 path keeps the standing rule "domain sized by V" (2048 for the
-  full chain, 512 for tiny) pending a decision on whether the cited §5 overrides it for tiny.
+  that regeneration too. Adam, 2026-11-25: the v0.8.1 path uses the fixed domain 2048 of the cited
+  §5 for every chain, tiny included (`Ring.domain081`, a parameter of `Ring.crypto`), as the
+  reading of the cited spec, to be confirmed by 0.8.1 vectors or fuzzer blocks. The v0.8.0 path
+  stays sized by V.

@@ -21,7 +21,7 @@ The v0.8.0 IETF VRF (`JamCrypto.Bandersnatch.ietfVerify`) is left as it is.
   [(G, Y), (I, O)], merged by delinearization (§1.6.4) into (I_m, O_m) = (G + z·I, Y + z·O); the
   proof (R, s) satisfies s·I_m = R + c·O_m with c = challenge([R], T) (§1.6.7).
 
-**Signature encoding (assumption).** GP gives 𝔹̄ as 96-octet strings and reads Y from the
+**Signature encoding (our reading of GP v0.8.1 and Draft 35; Adam, 2026-11-25).** GP gives 𝔹̄ as 96-octet strings and reads Y from the
 signature alone, but the draft encodes only the proof (R, s), 64 octets. We take the 96-octet
 signature to be enc_point(O) ⌢ enc_point(R) ⌢ enc_scalar(s), the output point first as in the
 v0.8.0 IETF signature (O ⌢ c ⌢ s) and the ring VRF proof (O ⌢ proof). `thinEncode`/`thinDecode`

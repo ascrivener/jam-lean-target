@@ -14,8 +14,8 @@ Against v0.8.0 (`Ring.verify`) the ring proof itself is unchanged except for its
 Draft 35's suite id as its ring vectors require — §5's prose says a "ring-proof" label). The
 Pedersen proof, hash to curve and output hash are Draft 35's.
 
-The domain is `domainSize ringSize`, as for v0.8.0; the caller chooses the ring size (see
-`Ring.crypto`).
+The domain is `domainSize ringSize`, as for v0.8.0; the caller chooses the ring size. `Ring.crypto`
+passes the ring size of the fixed domain 2048 of Draft 35 §5 (`Ring.domain081`).
 -/
 
 namespace JamCrypto.Ring
