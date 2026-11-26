@@ -42,6 +42,9 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   the pin; its merge rebuilds and pushes the image (`:latest` + short SHA). jam-lean merges that
   touch only docs, proofs (`Services/`), tests or CI need no bump. Version tags (`:v0.8.1`) only for
   deliberate releases. Docs-only pushes here do not rebuild the image (`image.yml` paths-ignore).
+- Releases: Actions -> Release -> Run workflow (`release.yml`: tag, full SHA on main, title, notes);
+  it creates the tag and release and starts the image build for the tag. Claude sessions cannot push
+  tags, so they run this workflow, only after Adam's go-ahead for each release.
 
 ## Where things are
 - Target: Main.lean (`serve`, `session`, `trace`, `craft`, `probe`), JamTarget/ (wire codec, state
