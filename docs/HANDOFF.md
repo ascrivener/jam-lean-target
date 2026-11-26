@@ -93,6 +93,14 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
   deposit refund afterwards.
 - jam-lean: Services proofs paused since c22c197 (proofs CI on demand only); see jam-lean HANDOFF.
 
+## Candidate milestone: testnet observer (Adam, 2026-11-26; not started)
+After the GP 0.8.1 fuzzer results: run shadow mode against a live JAM testnet on GP v0.8.1, fed
+blocks by an existing node (e.g. polkajam's RPC), so the model independently checks every imported
+block (state roots, rejections) in real time. Not a validating or authoring node: no networking,
+keys or authoring in Lean (the model stays an executable Gray Paper). Needs: a v0.8.1 testnet, a
+block feed from a node, and full-chain import speed (the jam-lean speedup work of 2026-11-26 helps).
+Startup is already fine (about 0.85 s to PeerInfo since jam-lean #271; see docs/profiling.md).
+
 ## Environment notes
 - Release assets of repos not attached to the session are blocked; container registries and git
   clone of public repos work; run node binaries in GitHub Actions instead.
