@@ -31,3 +31,7 @@ lean_exe pvmrun where
     `RefineBundle` (see vectors/refine). -/
 lean_exe refinegen where
   root := `RefineGen
+
+/-- Profiling harness (local): `lake exe profile [-n REPS] SESSION-DIR…`, `lake exe profile --prims`. -/
+lean_exe profile where
+  root := `Profile
