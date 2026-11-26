@@ -13,12 +13,15 @@ of the posterior state of the last block imported with success (or the `Initiali
 | report, digest, spec types and ℰ | §11, App. C | jam-lean `JAM/Work.lean` |
 | ℰ_C (erasure code, GP #580), R(v) | App. H | jam-lean `JAM.Erasure` |
 | ℳ_B, N | App. E | jam-lean `JAM.Merkle` |
-| ℳ, C, T, J_x, L_x | App. E | `Refine.constRoot`, `constancy`, `trace`, `justPath`, `leafPage` |
-| P (paged proofs) | eq. `pagedproofs` | `Refine.pagedProofs` |
+| ℳ, C, T, J_x, L_x, segment check | App. E | jam-lean `JAM.Segments` (`cdRoot`, `constancy`, `trace`, `justify`, `page`, `verifySegment`) |
+| P (paged proofs), 𝒫 | eq. `pagedproofs`, `zeropadding` | jam-lean `JAM.Segments.pagedProofs`, `zeroPad` |
 | B (bundle), A (availability spec) | §14.4, §14.4.1 | `Refine.Bundle.encode`, `Refine.availability` |
 | Ξ, I, C, p_a | §14.3, §14.4 | `Refine.xi`, `countUp`, `digest`, `packageAuthorizer` |
 
-jam-lean has no Ξ, A, P or constant-depth Merkle functions; they are written here from the paper.
+jam-lean has no Ξ or A; they are written here from the paper. Until 2026-11-26 the target also had its own
+constant-depth Merkle functions and P; they were cross-checked against jam-lean's `JAM.Segments` (jam-lean #277)
+on every refine vector and on random segment lists of 0 to 4097 items at every index, agreed everywhere,
+and were replaced by jam-lean's.
 
 ## The request
 
