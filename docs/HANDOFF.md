@@ -76,6 +76,25 @@ for jam-lean, jam-lean-target and jam (Jamzilla). The former jam-lean parent
 - JAM Toaster (`public-30`): genesis decodes under GP v0.8.0, roots match; blocks not yet checked
   (connecting to it as a peer is Adam's call).
 
+## 2026-11-26/27 update (read first)
+- **Startup** was 14–15 s (jam-lean's `JAM.Erasure.primitive` evaluated at module init), over
+  jam-fuzzing L0's `remote_timeout = 15` s; fixed by jam-lean #271, pinned via #42: start → PeerInfo
+  ≈ 0.85 s. Profiling harness and method: #41, `docs/profiling.md` (`lake exe profile`).
+- **Pins:** #42, #44 (jam-lean 12d04d3: fast PVM/hashing, auditing). In flight: #45 (segments switch,
+  jam-lean's `JAM.Segments` replaces constRoot/trace/justPath) and the §14 switch (jam-lean's
+  `JAM.Guarantee` replaces the target's B/A/C/I/Ξ/verify; pin ≥ e64fe32 incl. accumulation fixes).
+  Both cross-checked with 0 mismatches (refine vectors + mutations + random inputs). Error-message
+  texts stay target-side (`rejection`, `noReport`); jam-lean is verdict-only.
+- **Rule:** GP equations live in jam-lean; the target holds only fuzzer plumbing, generators, and
+  block authoring (Craft). Remaining target-only rule: refine's v ≤ 1023 / R(v) > 0 bound.
+- **New vectors:** `vectors/gp081-extra` (#37: F4/F6 block traces, cmov_nz_imm, out-of-range
+  branches, RAM below 2^16, F5); #38 derive081.py dependency-order fix (no vector changed).
+- **Release workflow** (#40): Actions → Release creates tag + release and starts the tag's image build;
+  run only after Adam's go-ahead. Docs-only pushes don't rebuild the image (#39).
+- **Candidate milestone:** testnet observer (#43).
+- Per-block (tiny, after jam-lean speedups): plain ≈ 21 ms, crypto ≈ 18 ms of it (crypto speedups in
+  progress in jam-lean, proved-only); epoch change ≈ 1 s (ring root).
+
 ## Open items (2026-11-25, end of day)
 - **0.8.1 conformance:** waiting for davxy's 0.8.1 fuzzer and vectors. Images: `:v0.8.1` / `:latest`
   (GP v0.8.1, f9acace), `:v0.8.0` (671f256). Announced on jam-fuzzing #221. When the data arrives:
