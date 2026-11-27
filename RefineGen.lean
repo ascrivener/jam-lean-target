@@ -87,7 +87,7 @@ def seg (b : Nat) : List UInt8 := List.replicate Constants.Csegmentsize (UInt8.o
 
 /-- Three segments some earlier package exported: their root and J_0 paths. -/
 def exported : List (List UInt8) := [seg 7, seg 8, seg 9]
-def exportedRoot : ByteArray := ⟨(Refine.constRoot exported).toArray⟩
+def exportedRoot : ByteArray := ⟨(Segments.cdRoot Refine.blakeBA exported).toArray⟩
 def exportedPkg : ByteArray := h "an earlier package".toUTF8.toList
 
 structure Case where
@@ -103,7 +103,7 @@ def cases (slot : Nat) : List Case :=
     { package := package slot items auth, extrinsics := [], imports := [], justifications := [] }
   let pl := "payload".toUTF8.toList
   let xt := "extrinsic data".toUTF8.toList
-  let imp (k : Nat) := (exported[k]!, Refine.justPath 0 exported k)
+  let imp (k : Nat) := (exported[k]!, Segments.justify Refine.blakeBA 0 exported k)
   -- most cases end with an item that exports one segment (v0.8.0 had no erasure root without
   -- exports; the cases are kept as they were)
   let ex := item progExport "exporter".toUTF8.toList (exports := 1)
@@ -157,7 +157,7 @@ def cases (slot : Nat) : List Case :=
     each parity row keeps its first d weights. -/
 def weights580 (v : Nat) : Array (Array Nat) :=
   let d := Erasure.originalShards v
-  let d' := 2 ^ Refine.ceilLog2 d
+  let d' := 2 ^ Segments.ceilLog2 d
   let parity := Erasure.lagrange (List.range d') ((List.range (v - d)).map (· + d'))
   ((List.range d).map fun i => (Array.range d).map fun j => if i = j then 1 else 0).toArray ++
     parity.map (·.extract 0 d)

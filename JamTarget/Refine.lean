@@ -2,18 +2,18 @@ import JAM.Refine
 import JAM.Erasure
 import JAM.Merkle
 import JAM.Decode
+import JAM.Segments
 
 /-!
 # The work-report function Ξ (GP v0.8.1 §14.4) and the `RefineBundle` request
 
 jam-lean gives the invocations Ψ_I and Ψ_R (`JAM.psiI`, `JAM.psiR`), the report types and their
-encodings, the erasure code ℰ_C (`JAM.Erasure.encode`) and the well-balanced Merkle root ℳ_B
-(`JAM.Merkle.root`). This module adds what Ξ needs beyond them, from GP v0.8.1:
+encodings, the erasure code ℰ_C (`JAM.Erasure.encode`), the well-balanced Merkle root ℳ_B
+(`JAM.Merkle.root`), and the constant-depth Merkle root ℳ, the justification paths J_x, the leaf
+pages L_x, the paged proofs P, the zero-padding 𝒫 and the segment check against a justification
+(`JAM.Segments`: `cdRoot`, `justify`, `page`, `pagedProofs`, `zeroPad`, `verifySegment`). This module
+adds what Ξ needs beyond them, from GP v0.8.1:
 
-* the constant-depth Merkle root ℳ, its preprocessor C, the trace T, the justification paths J_x
-  and the leaf pages L_x (Appendix E, eqs. `constantdepthmerkleroot`,
-  `constantdepthsubtreemerklejust`, `constantdepthsubtreemerkleleafpage`);
-* the paged proofs P (eq. `pagedproofs`);
 * the bundle encoding B (eq. `makebundle`) and the availability specifier A (§14.4.1);
 * Ξ itself (eq. `computereport`) with the count-up I, the digest function C (§14.3) and the
   authorizer p_a.
@@ -39,73 +39,10 @@ def blake (b : List UInt8) : List UInt8 := (Blake2b.hash256 ⟨b.toArray⟩).toL
 
 def blakeBA (b : ByteArray) : ByteArray := Blake2b.hash256 b
 
-def zeroHash : List UInt8 := List.replicate 32 0
-
-/-! ## Constant-depth Merkle trees (GP Appendix E) -/
-
-def leafPrefix : List UInt8 := "leaf".toUTF8.toList
-
-/-- ⌈log₂(max(1, n))⌉. -/
-def ceilLog2 (n : Nat) : Nat :=
-  ((List.range 65).find? fun k => n ≤ 2 ^ k).getD 64
-
-/-- C(**v**, H): the items hashed with the prefix $leaf, padded with H_0 to a power of two. -/
-def constancy (v : List (List UInt8)) : List (List UInt8) :=
-  let n := 2 ^ ceilLog2 v.length
-  v.map (fun x => blake (leafPrefix ++ x)) ++ List.replicate (n - v.length) zeroHash
-
-/-- N(**v**, Blake2b). -/
-def node (v : List (List UInt8)) : List UInt8 := Merkle.node blakeBA v.length v
-
-/-- ℳ(**v**) = N(C(**v**)) (eq. `constantdepthmerkleroot`). -/
-def constRoot (v : List (List UInt8)) : List UInt8 := node (constancy v)
-
-/-- T(**v**, i, H) (Appendix E, the trace): the opposite nodes from the top down to item i. `fuel`
-    bounds the depth; |**v**| suffices. -/
-def trace : Nat → List (List UInt8) → Nat → List (List UInt8)
-  | 0, _, _ => []
-  | fuel + 1, v, i =>
-    if v.length ≤ 1 then [] else
-    let h := (v.length + 1) / 2
-    if i < h then node (v.drop h) :: trace fuel (v.take h) i
-    else node (v.take h) :: trace fuel (v.drop h) (i - h)
-
-/-- J_x(**v**, i) = T(C(**v**), 2^x·i)_{…max(0, ⌈log₂(max(1,|**v**|))⌉ − x)}
-    (eq. `constantdepthsubtreemerklejust`). -/
-def justPath (x : Nat) (v : List (List UInt8)) (i : Nat) : List (List UInt8) :=
-  let c := constancy v
-  (trace c.length c (2 ^ x * i)).take (ceilLog2 v.length - x)
-
-/-- L_x(**v**, i): the hashed leaves of page i (eq. `constantdepthsubtreemerkleleafpage`). -/
-def leafPage (x : Nat) (v : List (List UInt8)) (i : Nat) : List (List UInt8) :=
-  ((v.drop (2 ^ x * i)).take (2 ^ x)).map fun l => blake (leafPrefix ++ l)
-
-/-- The root that a path **j** (top first, as T gives it) from item n with value `seg` implies,
-    for a tree of depth |**j**|. `none` if n is not below 2^|**j**|. -/
-def rootOfPath (seg : List UInt8) (n : Nat) (j : List (List UInt8)) : Option (List UInt8) :=
-  let d := j.length
-  if n ≥ 2 ^ d then none else
-  some <| (j.zipIdx.reverse).foldl (init := blake (leafPrefix ++ seg)) fun h (sib, k) =>
-    -- level k from the top: bit d−1−k of n says whether the item is in the right half
-    if (n >>> (d - 1 - k)) % 2 = 0 then blake (Merkle.nodePrefix ++ h ++ sib)
-    else blake (Merkle.nodePrefix ++ sib ++ h)
-
-/-! ## Paged proofs, bundle, availability specifier (GP §14.4) -/
+/-! ## Bundle, availability specifier (GP §14.4) -/
 
 /-- 𝖶_G zero octets. -/
 def zeroSegment : List UInt8 := List.replicate Constants.Csegmentsize 0
-
-/-- P_n(**x**): **x** zero-padded to a multiple of n (n > 0). -/
-def zeroPad (n : Nat) (x : List UInt8) : List UInt8 :=
-  x ++ List.replicate ((n - x.length % n) % n) 0
-
-/-- ↕ of a sequence of hashes. -/
-def varHashes (hs : List (List UInt8)) : List UInt8 := Codec.nat hs.length ++ hs.flatten
-
-/-- P(**s**) (eq. `pagedproofs`). -/
-def pagedProofs (s : List (List UInt8)) : List (List UInt8) :=
-  (List.range ((s.length + 63) / 64)).map fun i =>
-    zeroPad Constants.Csegmentsize (varHashes (justPath 6 s i) ++ varHashes (leafPage 6 s i))
 
 /-- The parts of a work-package bundle. -/
 structure Bundle where
@@ -121,7 +58,7 @@ structure Bundle where
     each justification's. -/
 def Bundle.encode (b : Bundle) : List UInt8 :=
   b.package.encode ++ b.extrinsics.flatten ++ b.imports.flatten ++
-    (b.justifications.map varHashes).flatten
+    (b.justifications.map (Codec.varSeq id)).flatten
 
 /-- ᵀ_v of the rows (each a list of chunks, one per validator) given as columns: chunk i of every
     row, for every i < v. With no rows each of the v items is [] (the sized transpose of GP v0.8.1,
@@ -136,13 +73,13 @@ def availabilityWith (w : Array (Array Nat)) (h : List UInt8) (b : List UInt8)
   let d := Erasure.originalShards v
   if d = 0 then none
   let z := 2 * d
-  let bChunks ← Erasure.encodeWith d w ⟨(zeroPad z b).toArray⟩
+  let bChunks ← Erasure.encodeWith d w ⟨(Segments.zeroPad z b).toArray⟩
   let bClub := bChunks.map fun c => (blakeBA c).toList
-  let segRows ← (s ++ pagedProofs s).mapM fun x => Erasure.encodeWith d w ⟨x.toArray⟩
+  let segRows ← (s ++ Segments.pagedProofs blakeBA s).mapM fun x => Erasure.encodeWith d w ⟨x.toArray⟩
   let sClub := (columns v segRows).map (Merkle.root blakeBA)
   let er := Merkle.root blakeBA ((bClub.zip sClub).map fun (x, y) => x ++ y)
   return { packageHash := ⟨h.toArray⟩, bundleLength := b.length, erasureRoot := ⟨er.toArray⟩,
-           erasureShards := v, segmentRoot := ⟨(constRoot s).toArray⟩, segmentCount := s.length }
+           erasureShards := v, segmentRoot := ⟨(Segments.cdRoot blakeBA s).toArray⟩, segmentCount := s.length }
 
 /-- A(h, **b**, **s**, v) with GP v0.8.1's erasure code ℰ_C (jam-lean `Erasure.encodeWeights`). -/
 def availability (h : List UInt8) (b : List UInt8) (s : List (List UInt8)) (v : Nat) :
@@ -219,7 +156,7 @@ def verify (b : Bundle) (l : OctetDict) :
   for (((r, n), seg), j) in (is.zip b.imports).zip b.justifications do
     unless seg.length = Constants.Csegmentsize do throw (.bundle "import segment of wrong size")
     let root := match r with | .root h => h.toList | .package h => (l.get? h.toList).getD []
-    unless rootOfPath seg n j = some root do
+    unless Segments.verifySegment blakeBA root n seg j do
       throw (.bundle s!"import segment {n} does not verify against its justification")
   let lens := items.map (·.extrinsics.length)
   return (splitBy lens b.extrinsics, splitBy (items.map (·.importSegments.length)) b.imports)
