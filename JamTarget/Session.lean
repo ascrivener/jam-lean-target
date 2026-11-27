@@ -136,7 +136,6 @@ def Session.handle (s : Session) (r : Request) : Session × Option Response × L
     match s.entries.find? (·.hash == H.parent.toList) with
     | none => (s, some (.error s!"unknown parent {hex H.parent.toList}"), [s!"import slot {H.slot}: unknown parent"])
     | some par =>
-      let L := s.params.maxLookupAnchorAge
       let chain : Chain := { ancestors := par.ancestors }
       match importBlock s.params s.crypto chain par.state b with
       | .error err =>
@@ -146,7 +145,7 @@ def Session.handle (s : Session) (r : Request) : Session × Option Response × L
         if s.entries.any (·.hash == hh) then
           (s, some (.stateRoot σ'.root), [s!"import slot {H.slot}: already imported"])
         else
-        let anc := (par.ancestors ++ [H]).reverse.take L |>.reverse
+        let anc := (chain.extend s.params H).ancestors
         let e : Entry := { hash := hh, header := H, state := σ', ancestors := anc }
         let s' := { s with entries := (e :: s.entries).take maxEntries }.noteRoots σ'
         (s', some (.stateRoot σ'.root), [s!"import slot {H.slot}: ok {hex σ'.root}"])
