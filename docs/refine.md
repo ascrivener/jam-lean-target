@@ -27,7 +27,7 @@ in the words the target has always used, so every answer is byte for byte what i
 
 Until 2026-11-27 the target had its own implementations: until 2026-11-26 the constant-depth Merkle
 functions and P, cross-checked against jam-lean's `JAM.Segments` (jam-lean #277) on every refine
-vector and on random segment lists at every index; then B, A, I, C, p_a, Ξ and the bundle checks,
+vector and on random segment lists of 0 to 4097 items at every index (1,113,976 checks); then B, A, I, C, p_a, Ξ and the bundle checks,
 cross-checked against `JAM.Guarantee` (jam-lean #283) on every refine vector and 18 mutations of each
 (reports equal byte for byte, the same verdicts), on A for random bundles, exports and v from 2 to
 1023, and on the session's answers to 594 byte-mutated refine requests (byte-identical before and
