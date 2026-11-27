@@ -2,7 +2,8 @@
 
 The target answers `RefineBundle` (tag 6) with `WorkReport` (tag 7) or `Error`, as proposed in
 jam-fuzzing PR #214 (branch `refinement-extension-followup`, `feature-refine` = 2^2). The report
-is Ξ(p, c, l, v) of GP v0.8.1 §14.4, computed by `JamTarget/Refine.lean` on the service accounts
+is Ξ(p, c, l, v) of GP v0.8.1 §14.4, computed by jam-lean's `JAM.Guarantee.computeReport` (called from
+`JamTarget/Refine.lean`) on the service accounts
 of the posterior state of the last block imported with success (or the `Initialize` state).
 
 ## What comes from where
@@ -15,13 +16,22 @@ of the posterior state of the last block imported with success (or the `Initiali
 | ℳ_B, N | App. E | jam-lean `JAM.Merkle` |
 | ℳ, C, T, J_x, L_x, segment check | App. E | jam-lean `JAM.Segments` (`cdRoot`, `constancy`, `trace`, `justify`, `page`, `verifySegment`) |
 | P (paged proofs), 𝒫 | eq. `pagedproofs`, `zeropadding` | jam-lean `JAM.Segments.pagedProofs`, `zeroPad` |
-| B (bundle), A (availability spec) | §14.4, §14.4.1 | `Refine.Bundle.encode`, `Refine.availability` |
-| Ξ, I, C, p_a | §14.3, §14.4 | `Refine.xi`, `countUp`, `digest`, `packageAuthorizer` |
+| B (bundle) and its decoding, A (availability spec), ᵀ_v | §14.4, §14.4.1, App. H | jam-lean `JAM.Guarantee` (`bundle`, `Bundle.decode`, `availabilitySpec`, `sizedTranspose`) |
+| Ξ, I, C, p_a | §14.3, §14.4 | jam-lean `Guarantee.computeReport`, `refineItems`, `itemToDigest`, `WorkPackage.authorizer` |
+| bundle checks | §17.1, eq. `computereport` (E) | jam-lean `Guarantee.checkBundle` |
+| v ≤ 1023 with R(v) > 0, the `Error` texts | — | `Refine.xi`, `rejection`, `noReport` (target only) |
 
-jam-lean has no Ξ or A; they are written here from the paper. Until 2026-11-26 the target also had its own
-constant-depth Merkle functions and P; they were cross-checked against jam-lean's `JAM.Segments` (jam-lean #277)
-on every refine vector and on random segment lists of 0 to 4097 items at every index, agreed everywhere,
-and were replaced by jam-lean's.
+All of Ξ is jam-lean's. The target keeps the request format, the bound on v and the wording of its
+`Error` answers: jam-lean's checks decide, and `rejection` / `noReport` name the first failing check
+in the words the target has always used, so every answer is byte for byte what it was.
+
+Until 2026-11-27 the target had its own implementations: until 2026-11-26 the constant-depth Merkle
+functions and P, cross-checked against jam-lean's `JAM.Segments` (jam-lean #277) on every refine
+vector and on random segment lists of 0 to 4097 items at every index (1,113,976 checks); then B, A, I, C, p_a, Ξ and the bundle checks,
+cross-checked against `JAM.Guarantee` (jam-lean #283) on every refine vector and 18 mutations of each
+(reports equal byte for byte, the same verdicts), on A for random bundles, exports and v from 2 to
+1023, and on the session's answers to 594 byte-mutated refine requests (byte-identical before and
+after). Both agreed everywhere and were replaced by jam-lean's.
 
 ## The request
 

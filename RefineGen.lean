@@ -90,16 +90,36 @@ def exported : List (List UInt8) := [seg 7, seg 8, seg 9]
 def exportedRoot : ByteArray := ⟨(Segments.cdRoot Refine.blakeBA exported).toArray⟩
 def exportedPkg : ByteArray := h "an earlier package".toUTF8.toList
 
+/-- A bundle given as the package and the flat data of all its items (the layout of B). -/
+structure FlatBundle where
+  package : WorkPackage
+  extrinsics : List (List UInt8)
+  imports : List (List UInt8)
+  justifications : List (List (List UInt8))
+
+/-- Split a flat list by the given lengths. -/
+def splitBy {α : Type} : List Nat → List α → List (List α)
+  | [], _ => []
+  | n :: ns, xs => xs.take n :: splitBy ns (xs.drop n)
+
+/-- The data split per item, as jam-lean's `Guarantee.Bundle` holds it. -/
+def FlatBundle.toBundle (b : FlatBundle) : Guarantee.Bundle :=
+  let items := b.package.items
+  let xs := splitBy (items.map (·.extrinsics.length)) b.extrinsics
+  let ss := splitBy (items.map (·.importSegments.length)) b.imports
+  let js := splitBy (items.map (·.importSegments.length)) b.justifications
+  { package := b.package, items := ((xs.zip ss).zip js).map fun ((x, s), j) => ⟨x, s, j⟩ }
+
 structure Case where
   name : String
   core : Nat := 0
   lookup : OctetDict := ∅
   shards : Nat := 6
-  bundle : Refine.Bundle
+  bundle : FlatBundle
 
 def cases (slot : Nat) : List Case :=
   let pk := package slot
-  let b (items : List WorkItem) (auth := progHalt) : Refine.Bundle :=
+  let b (items : List WorkItem) (auth := progHalt) : FlatBundle :=
     { package := package slot items auth, extrinsics := [], imports := [], justifications := [] }
   let pl := "payload".toUTF8.toList
   let xt := "extrinsic data".toUTF8.toList
@@ -167,8 +187,10 @@ def weights580 (v : Nat) : Array (Array Nat) :=
     cross-checks only (`refinegen BASE OUT --prefixed`); the target reads the GP bundle encoding. -/
 def encodePrefixed (q : Refine.Request) : List UInt8 :=
   Codec.fixed 2 q.core ++ Codec.varHashDict q.lookup ++ Codec.fixed 2 q.shards ++
-    q.bundle.package.encode ++ Codec.varSeq (fun x => Codec.nat x.length ++ x) q.bundle.extrinsics ++
-    Codec.varSeq id q.bundle.imports ++ Codec.varSeq (Codec.varSeq id) q.bundle.justifications
+    q.bundle.package.encode ++
+    Codec.varSeq (fun x => Codec.nat x.length ++ x) (q.bundle.items.flatMap (·.extrinsics)) ++
+    Codec.varSeq id (q.bundle.items.flatMap (·.imports)) ++
+    Codec.varSeq (Codec.varSeq id) (q.bundle.items.flatMap (·.justifications))
 
 
 end RefineGen
@@ -217,7 +239,7 @@ def main (args : List String) : IO UInt32 := do
      "|---|------|----------|---------|"]
   let mut n := 2
   for c in cases hdr.slot do
-    let q : Refine.Request := { core := c.core, lookup := c.lookup, shards := c.shards, bundle := c.bundle }
+    let q : Refine.Request := { core := c.core, lookup := c.lookup, shards := c.shards, bundle := c.bundle.toBundle }
     let qMsg := 6 :: q.encode
     -- through the decoder, as the target sees it
     let .ok req := Decoder.run (Request.decode params) ⟨qMsg.toArray⟩
